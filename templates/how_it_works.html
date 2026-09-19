@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}How It Works — AgriSmart AI{% endblock %}
+{% block body %}
+<div style="padding-top:80px;min-height:100vh;">
+    <div class="section" style="max-width:900px;margin:0 auto;">
+        <div style="text-align:center;margin-bottom:3rem;">
+            <div style="font-size:.8rem;text-transform:uppercase;letter-spacing:.1em;color:var(--primary-light);margin-bottom:.5rem;">Technology</div>
+            <h1 style="font-size:2.5rem;font-weight:800;">How AgriSmart AI Works</h1>
+            <p style="color:var(--text-muted);margin-top:.75rem;">Understanding the deep learning pipeline behind our crop disease detection</p>
+        </div>
+
+        <!-- CNN Pipeline -->
+        <div class="card" style="margin-bottom:1.5rem;">
+            <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:1.5rem;color:var(--accent);">🧠 MobileNetV2 Transfer Learning Pipeline</h2>
+            <div style="display:flex;flex-direction:column;gap:1rem;">
+                {% for step in [
+                    ('1','Input', 'fas fa-image','#3498db','Your uploaded leaf image (any resolution)'),
+                    ('2','Preprocessing','fas fa-sliders-h','#9b59b6','Resize to 224×224, normalize with ImageNet mean=[0.485,0.456,0.406], std=[0.229,0.224,0.225]'),
+                    ('3','MobileNetV2 Backbone','fas fa-brain','#27ae60','Pre-trained convolutional layers extract 1280 spatial feature maps. Weights from ImageNet training — frozen during fine-tuning.'),
+                    ('4','Global Average Pooling','fas fa-compress-arrows-alt','#e67e22','Reduces each feature map to a single value → 1280-d feature vector'),
+                    ('5','Dropout (p=0.2)','fas fa-random','#7f8c8d','Regularization to prevent overfitting on the 38-class classifier head'),
+                    ('6','Linear Classifier','fas fa-project-diagram','#e74c3c','Custom linear layer: 1280 → 38 class logits. Fine-tuned on PlantVillage dataset.'),
+                    ('7','Softmax Output','fas fa-chart-bar','#f39c12','38 probability scores (sum=1.0). Highest probability → predicted disease class + confidence score')
+                ] %}
+                <div style="display:flex;gap:1rem;align-items:flex-start;padding:.75rem;background:rgba(255,255,255,0.03);border-radius:10px;border:1px solid var(--border);">
+                    <div style="width:36px;height:36px;border-radius:8px;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-weight:800;color:{{ step[3] }};flex-shrink:0;font-size:.9rem;">{{ step[0] }}</div>
+                    <div>
+                        <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.25rem;">
+                            <i class="{{ step[2] }}" style="color:{{ step[3] }};font-size:.9rem;"></i>
+                            <strong>{{ step[1] }}</strong>
+                        </div>
+                        <p style="font-size:.85rem;color:var(--text-muted);line-height:1.6;">{{ step[4] }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Dataset -->
+        <div class="card" style="margin-bottom:1.5rem;">
+            <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:.75rem;">📊 PlantVillage Dataset</h2>
+            <p style="color:var(--text-muted);font-size:.9rem;line-height:1.7;margin-bottom:1rem;">The PlantVillage dataset contains 54,306 images of healthy and diseased crop leaves across 38 classes and 14 crop species. It was created at Penn State University and is one of the most widely used agricultural AI datasets in the world.</p>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.75rem;">
+                <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:.9rem;text-align:center;">
+                    <div style="font-size:1.5rem;font-weight:800;color:var(--accent);">54,306</div>
+                    <div style="font-size:.78rem;color:var(--text-muted);">Total Images</div>
+                </div>
+                <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:.9rem;text-align:center;">
+                    <div style="font-size:1.5rem;font-weight:800;color:var(--accent);">38</div>
+                    <div style="font-size:.78rem;color:var(--text-muted);">Disease Classes</div>
+                </div>
+                <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:.9rem;text-align:center;">
+                    <div style="font-size:1.5rem;font-weight:800;color:var(--accent);">14</div>
+                    <div style="font-size:.78rem;color:var(--text-muted);">Crop Types</div>
+                </div>
+                <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:.9rem;text-align:center;">
+                    <div style="font-size:1.5rem;font-weight:800;color:var(--accent);">~96%</div>
+                    <div style="font-size:.78rem;color:var(--text-muted);">SOTA Accuracy</div>
+                </div>
+            </div>
+        </div>
+
+        <div style="text-align:center;">
+            <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg">Try It Now</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}About — AgriSmart AI{% endblock %}
+{% block body %}
+<div style="padding-top:80px;min-height:100vh;max-width:900px;margin:0 auto;padding-bottom:3rem;">
+    <div class="section">
+        <div style="text-align:center;margin-bottom:3rem;">
+            <div style="font-size:4rem;margin-bottom:1rem;">🌿</div>
+            <h1 style="font-size:2.5rem;font-weight:800;">About AgriSmart AI</h1>
+            <p style="color:var(--text-muted);margin-top:.75rem;font-size:1.05rem;">An AI-powered crop disease detection platform — CSE 7th Semester Major Project</p>
+        </div>
+
+        <div class="card" style="margin-bottom:1.5rem;">
+            <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:.75rem;">Project Overview</h2>
+            <p style="color:var(--text-muted);line-height:1.8;">AgriSmart AI is a full-stack web application that uses deep learning (PyTorch MobileNetV2) and transfer learning from the PlantVillage dataset to detect crop diseases from leaf photos. Farmers can upload a photo of any crop leaf, and the system returns a diagnosis, confidence score, severity level, treatment plan, and organic remedies — all in seconds.</p>
+        </div>
+
+        <div class="grid-2" style="margin-bottom:1.5rem;">
+            <div class="card">
+                <h3 style="font-size:1rem;font-weight:700;margin-bottom:.75rem;color:var(--primary-light);">🧠 Machine Learning</h3>
+                <ul style="list-style:none;font-size:.88rem;color:var(--text-muted);display:flex;flex-direction:column;gap:.4rem;">
+                    <li>• Architecture: MobileNetV2 (Transfer Learning)</li>
+                    <li>• Framework: PyTorch</li>
+                    <li>• Dataset: PlantVillage (54,000+ images)</li>
+                    <li>• Classes: 38 disease categories</li>
+                    <li>• Input: 224×224 RGB leaf images</li>
+                    <li>• Preprocessing: ImageNet normalization</li>
+                </ul>
+            </div>
+            <div class="card">
+                <h3 style="font-size:1rem;font-weight:700;margin-bottom:.75rem;color:var(--primary-light);">⚙️ Technology Stack</h3>
+                <ul style="list-style:none;font-size:.88rem;color:var(--text-muted);display:flex;flex-direction:column;gap:.4rem;">
+                    <li>• Backend: Flask 3.0 + SQLAlchemy</li>
+                    <li>• Database: SQLite</li>
+                    <li>• Authentication: Flask-Login + Werkzeug</li>
+                    <li>• Charts: Chart.js</li>
+                    <li>• PDF: fpdf2 (server-side)</li>
+                    <li>• Weather: OpenWeatherMap API</li>
+                    <li>• Deployment: Render.com</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card" style="margin-bottom:1.5rem;">
+            <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:.75rem;">Key Features</h2>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.75rem;">
+                {% for f in ['📸 AI Image Analysis','🌤️ Live Weather Advisory','📚 38-Disease Encyclopedia','📊 Health Analytics Charts','📄 PDF Report Download','📥 CSV Data Export','🔒 Role-based Access Control','🌿 Organic Remedies Guide'] %}
+                <div style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:.75rem;font-size:.88rem;">{{ f }}</div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div style="text-align:center;">
+            <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg">Get Started</a>
+            <a href="{{ url_for('main.contact') }}" class="btn btn-outline btn-lg" style="margin-left:.75rem;">Contact Us</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

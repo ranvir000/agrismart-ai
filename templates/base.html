@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}AgriSmart AI{% endblock %}</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌿</text></svg>">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+<!-- ── Public Navbar ──────────────────────────────────────── -->
+<nav class="navbar">
+    <a href="{{ url_for('main.index') }}" class="navbar-brand">
+        <span class="brand-icon">🌿</span>
+        Agri<span>Smart</span> AI
+    </a>
+    <div class="nav-links">
+        <a href="{{ url_for('main.index') }}" {% if request.endpoint == 'main.index' %}class="active"{% endif %}>Home</a>
+        <a href="{{ url_for('diseases.diseases_list') }}" {% if request.endpoint and 'disease' in request.endpoint %}class="active"{% endif %}>Disease Library</a>
+        <a href="{{ url_for('main.how_it_works') }}" {% if request.endpoint == 'main.how_it_works' %}class="active"{% endif %}>How It Works</a>
+        <a href="{{ url_for('main.about') }}" {% if request.endpoint == 'main.about' %}class="active"{% endif %}>About</a>
+        <a href="{{ url_for('main.contact') }}" {% if request.endpoint == 'main.contact' %}class="active"{% endif %}>Contact</a>
+    </div>
+    <div class="nav-cta">
+        {% if current_user.is_authenticated %}
+            {% if current_user.is_admin %}
+                <a href="{{ url_for('admin.admin_panel') }}" class="btn btn-outline btn-sm">
+                    <i class="fas fa-shield-alt"></i> Admin Panel
+                </a>
+            {% else %}
+                <a href="{{ url_for('dashboard.dashboard') }}" class="btn btn-primary btn-sm">
+                    <i class="fas fa-seedling"></i> Dashboard
+                </a>
+            {% endif %}
+            <a href="{{ url_for('auth.logout') }}" class="btn btn-outline btn-sm">Logout</a>
+        {% else %}
+            <a href="{{ url_for('auth.login') }}" class="btn btn-outline btn-sm">Login</a>
+            <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-sm">Get Started</a>
+        {% endif %}
+    </div>
+</nav>
+
+<!-- ── Flash Messages ─────────────────────────────────────── -->
+<div style="position:fixed;top:70px;right:1rem;z-index:9999;max-width:380px;">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ 'success' if category=='success' else 'danger' if category=='danger' else 'warning' if category=='warning' else 'info' }}" 
+                     style="animation:slideIn .3s ease;cursor:pointer;" onclick="this.remove()">
+                    <i class="fas fa-{{ 'check-circle' if category=='success' else 'exclamation-circle' if category=='danger' else 'info-circle' }}"></i>
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+</div>
+
+{% block body %}{% endblock %}
+
+<!-- ── Public Footer ─────────────────────────────────────── -->
+{% block footer %}
+<footer class="footer">
+    <div class="footer-grid">
+        <div class="footer-brand">
+            <div class="navbar-brand" style="font-size:1.2rem;">
+                <span>🌿</span> Agri<span style="color:var(--accent)">Smart</span> AI
+            </div>
+            <p>AI-powered crop disease detection for smart, sustainable agriculture. Protecting harvests with machine learning.</p>
+        </div>
+        <div>
+            <h4>Platform</h4>
+            <ul>
+                <li><a href="{{ url_for('auth.register') }}">Get Started</a></li>
+                <li><a href="{{ url_for('diseases.diseases_list') }}">Disease Library</a></li>
+                <li><a href="{{ url_for('main.how_it_works') }}">How It Works</a></li>
+            </ul>
+        </div>
+        <div>
+            <h4>Resources</h4>
+            <ul>
+                <li><a href="{{ url_for('main.about') }}">About</a></li>
+                <li><a href="{{ url_for('main.contact') }}">Contact</a></li>
+            </ul>
+        </div>
+        <div>
+            <h4>Technology</h4>
+            <ul>
+                <li><a href="{{ url_for('main.how_it_works') }}">MobileNetV2 CNN</a></li>
+                <li><a href="{{ url_for('main.how_it_works') }}">Transfer Learning</a></li>
+                <li><a href="{{ url_for('main.how_it_works') }}">PlantVillage Dataset</a></li>
+            </ul>
+        </div>
+    </div>
+    <div class="footer-bottom">
+        <p>&copy; {{ now.year }} AgriSmart AI — CSE Major Project. Built with 🌿 and Machine Learning.</p>
+    </div>
+</footer>
+{% endblock %}
+
+<style>
+@keyframes slideIn { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:translateX(0); } }
+</style>
+<script>
+// Auto-dismiss flash messages after 5s
+setTimeout(() => {
+    document.querySelectorAll('.alert').forEach(a => {
+        a.style.transition = 'opacity 0.4s';
+        a.style.opacity = '0';
+        setTimeout(() => a.remove(), 400);
+    });
+}, 5000);
+</script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

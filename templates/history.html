@@ -1,0 +1,139 @@
+{% extends "app_base.html" %}
+{% block title %}Scan History — AgriSmart AI{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">📋 Scan History</h1>
+        <p class="page-subtitle">All your crop disease scans in one place</p>
+    </div>
+    <div style="display:flex;gap:.6rem;">
+        <a href="{{ url_for('history.export_csv') }}" class="btn btn-outline">
+            <i class="fas fa-download"></i> Export CSV
+        </a>
+        <a href="{{ url_for('scan.scan_crop') }}" class="btn btn-primary">
+            <i class="fas fa-camera"></i> New Scan
+        </a>
+    </div>
+</div>
+
+<!-- ── Filter Bar ─────────────────────────────────────────── -->
+<div class="card" style="margin-bottom:1.25rem;">
+    <form method="GET" style="display:flex;gap:.75rem;align-items:flex-end;flex-wrap:wrap;">
+        <div style="flex:1;min-width:200px;">
+            <label class="form-label">Filter by Disease</label>
+            <input type="text" name="disease" class="form-control" 
+                   placeholder="e.g. blight, rust…" 
+                   value="{{ disease_filter }}">
+        </div>
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-search"></i> Search
+        </button>
+        {% if disease_filter %}
+        <a href="{{ url_for('history.history_page') }}" class="btn btn-outline">
+            <i class="fas fa-times"></i> Clear
+        </a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- ── Table ──────────────────────────────────────────────── -->
+<div class="card">
+    {% if scans.items %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th></th>
+                    <th>#</th>
+                    <th>Crop</th>
+                    <th>Disease</th>
+                    <th>Severity</th>
+                    <th>Confidence</th>
+                    <th>Date</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for scan in scans.items %}
+                <tr>
+                    <td>
+                        <img src="{{ url_for('static', filename='uploads/' + scan.image_filename) }}"
+                             style="width:40px;height:40px;border-radius:6px;object-fit:cover;border:1px solid var(--border);"
+                             onerror="this.src='data:image/svg+xml,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 40 40\'><rect fill=\'%23172d1e\' width=\'40\' height=\'40\'/><text x=\'50%25\' y=\'55%25\' dominant-baseline=\'middle\' text-anchor=\'middle\' font-size=\'20\'>🌿</text></svg>'"
+                             alt="">
+                    </td>
+                    <td style="color:var(--text-muted);">#{{ scan.id }}</td>
+                    <td>{{ scan.crop_type }}</td>
+                    <td>{{ scan.disease_name }}</td>
+                    <td>
+                        <span class="badge {% if scan.severity == 'Healthy' %}badge-success{% elif scan.severity == 'Mild' %}badge-warning{% elif scan.severity == 'Moderate' %}badge-orange{% else %}badge-danger{% endif %}">
+                            {{ scan.severity }}
+                        </span>
+                    </td>
+                    <td>{{ (scan.confidence * 100)|round(1) }}%</td>
+                    <td style="color:var(--text-muted);font-size:.82rem;">{{ scan.timestamp.strftime('%b %d, %Y') }}</td>
+                    <td>
+                        <div style="display:flex;gap:.4rem;">
+                            <a href="{{ url_for('scan.scan_results', scan_id=scan.id) }}" class="btn btn-outline btn-sm">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            <a href="{{ url_for('scan.download_pdf', scan_id=scan.id) }}" class="btn btn-outline btn-sm" title="Download PDF">
+                                <i class="fas fa-file-pdf"></i>
+                            </a>
+                            <form method="POST" action="{{ url_for('history.delete_scan', scan_id=scan.id) }}" 
+                                  onsubmit="return confirm('Delete this scan record?');">
+                                <button type="submit" class="btn btn-danger btn-sm" title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ── Pagination ─────────────────────────────────────── -->
+    {% if scans.pages > 1 %}
+    <div class="pagination">
+        {% if scans.has_prev %}
+            <a href="{{ url_for('history.history_page', page=scans.prev_num, disease=disease_filter) }}">&laquo;</a>
+        {% else %}
+            <span style="opacity:.35;">&laquo;</span>
+        {% endif %}
+
+        {% for p in scans.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+            {% if p %}
+                {% if p == scans.page %}
+                    <span class="current">{{ p }}</span>
+                {% else %}
+                    <a href="{{ url_for('history.history_page', page=p, disease=disease_filter) }}">{{ p }}</a>
+                {% endif %}
+            {% else %}
+                <span>…</span>
+            {% endif %}
+        {% endfor %}
+
+        {% if scans.has_next %}
+            <a href="{{ url_for('history.history_page', page=scans.next_num, disease=disease_filter) }}">&raquo;</a>
+        {% else %}
+            <span style="opacity:.35;">&raquo;</span>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div style="text-align:center;padding:3rem;color:var(--text-muted);">
+        <i class="fas fa-search" style="font-size:2.5rem;margin-bottom:1rem;display:block;opacity:.3;"></i>
+        {% if disease_filter %}
+            No scans found matching "{{ disease_filter }}".
+            <br><a href="{{ url_for('history.history_page') }}" style="margin-top:.5rem;display:inline-block;">Show all scans</a>
+        {% else %}
+            No scans yet. <a href="{{ url_for('scan.scan_crop') }}">Upload your first crop photo!</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

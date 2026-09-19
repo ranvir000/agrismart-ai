@@ -1,0 +1,152 @@
+{% extends "app_base.html" %}
+{% block title %}Dashboard — AgriSmart AI{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">🌾 Farm Dashboard</h1>
+        <p class="page-subtitle">Welcome back, {{ current_user.username }}! Here's your crop health overview.</p>
+    </div>
+    <a href="{{ url_for('scan.scan_crop') }}" class="btn btn-accent">
+        <i class="fas fa-camera"></i> Scan a Crop
+    </a>
+</div>
+
+<!-- ── Stats ─────────────────────────────────────────────── -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon green"><i class="fas fa-camera"></i></div>
+        <div>
+            <div class="stat-value">{{ total_scans }}</div>
+            <div class="stat-label">Total Scans</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon blue"><i class="fas fa-check-circle"></i></div>
+        <div>
+            <div class="stat-value">{{ healthy_scans }}</div>
+            <div class="stat-label">Healthy Results</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon yellow"><i class="fas fa-exclamation-triangle"></i></div>
+        <div>
+            <div class="stat-value">{{ total_scans - healthy_scans }}</div>
+            <div class="stat-label">Diseases Found</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon purple"><i class="fas fa-thermometer-half"></i></div>
+        <div>
+            <div class="stat-value">{{ weather.current_temp }}°C</div>
+            <div class="stat-label">Current Temp</div>
+        </div>
+    </div>
+</div>
+
+<div class="grid-2">
+    <!-- ── Recent Scans ────────────────────────────────────── -->
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title"><i class="fas fa-history" style="color:var(--primary-light);margin-right:.4rem;"></i> Recent Scans</h2>
+            <a href="{{ url_for('history.history_page') }}" class="btn btn-outline btn-sm">View All</a>
+        </div>
+        {% if recent_scans %}
+            {% for scan in recent_scans %}
+            <a href="{{ url_for('scan.scan_results', scan_id=scan.id) }}" 
+               style="display:flex;align-items:center;gap:.85rem;padding:.65rem 0;border-bottom:1px solid var(--border);text-decoration:none;color:inherit;">
+                <img src="{{ url_for('static', filename='uploads/' + scan.image_filename) }}"
+                     style="width:44px;height:44px;border-radius:8px;object-fit:cover;border:1px solid var(--border);"
+                     onerror="this.src='data:image/svg+xml,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 44 44\'><rect fill=\'%23172d1e\' width=\'44\' height=\'44\'/><text x=\'50%25\' y=\'55%25\' dominant-baseline=\'middle\' text-anchor=\'middle\' font-size=\'22\'>🌿</text></svg>'">
+                <div style="flex:1;">
+                    <div style="font-size:.9rem;font-weight:600;">{{ scan.disease_name }}</div>
+                    <div style="font-size:.75rem;color:var(--text-muted);">{{ scan.crop_type }} · {{ scan.timestamp.strftime('%b %d, %H:%M') }}</div>
+                </div>
+                <span class="badge {% if scan.severity == 'Healthy' %}badge-success{% elif scan.severity == 'Mild' %}badge-warning{% elif scan.severity == 'Moderate' %}badge-orange{% else %}badge-danger{% endif %}">
+                    {{ scan.severity }}
+                </span>
+            </a>
+            {% endfor %}
+        {% else %}
+            <div style="text-align:center;padding:2rem;color:var(--text-muted);">
+                <i class="fas fa-camera" style="font-size:2rem;margin-bottom:.75rem;display:block;opacity:.4;"></i>
+                No scans yet. <a href="{{ url_for('scan.scan_crop') }}">Scan your first crop!</a>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- ── Weather Widget ─────────────────────────────────── -->
+    <div>
+        <div class="weather-widget" style="margin-bottom:1rem;">
+            <div class="card-header" style="border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:.75rem;margin-bottom:1rem;">
+                <h2 class="card-title"><i class="fas fa-cloud-sun" style="color:#5dade2;margin-right:.4rem;"></i> 
+                    Weather — {{ weather.city }}
+                    {% if weather.source == 'demo' %}<span style="font-size:0.7rem;color:var(--text-muted);margin-left:.3rem;">(demo)</span>{% endif %}
+                </h2>
+                <a href="{{ url_for('dashboard.weather') }}" class="btn btn-outline btn-sm">Full Forecast</a>
+            </div>
+            <div class="weather-main">
+                <div>
+                    <div class="weather-temp">{{ weather.current_temp }}°C</div>
+                    <div style="font-size:.85rem;color:var(--text-muted);">Humidity: {{ weather.current_humidity }}%</div>
+                </div>
+                <div style="margin-left:auto;">
+                    <img src="https://openweathermap.org/img/wn/{{ weather.forecasts[0].icon if weather.forecasts else '01d' }}@2x.png"
+                         style="width:56px;height:56px;"
+                         onerror="this.style.display='none'">
+                </div>
+            </div>
+            <div class="weather-forecast">
+                {% for day in weather.forecasts %}
+                <div class="forecast-day">
+                    <div class="date">{{ day.date[:3] }}</div>
+                    <img src="https://openweathermap.org/img/wn/{{ day.icon }}.png" style="width:28px;height:28px;" onerror="this.style.display='none'">
+                    <div class="temp">{{ day.temp_max }}° / {{ day.temp_min }}°</div>
+                    <div style="font-size:.65rem;color:var(--text-muted);">{{ day.humidity }}% 💧</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- ── Advisories ──────────────────────────────────── -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title"><i class="fas fa-lightbulb" style="color:var(--accent);margin-right:.4rem;"></i> Crop Advisories</h2>
+            </div>
+            {% for adv in advisories %}
+            <div class="advisory-card">
+                <div class="advisory-icon" style="color:{{ adv.color }};"><i class="fas {{ adv.icon }}"></i></div>
+                <div>
+                    <div class="advisory-title" style="color:{{ adv.color }};">{{ adv.title }}</div>
+                    <div class="advisory-msg">{{ adv.message }}</div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- ── Quick Actions ──────────────────────────────────────── -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin-top:1.5rem;">
+    <a href="{{ url_for('scan.scan_crop') }}" class="card" style="text-align:center;text-decoration:none;transition:transform .2s;display:block;" onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform=''">
+        <div style="font-size:2rem;margin-bottom:.5rem;">📸</div>
+        <div style="font-weight:600;">New Scan</div>
+        <div style="font-size:.8rem;color:var(--text-muted);">Upload crop photo</div>
+    </a>
+    <a href="{{ url_for('analytics.analytics_page') }}" class="card" style="text-align:center;text-decoration:none;transition:transform .2s;display:block;" onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform=''">
+        <div style="font-size:2rem;margin-bottom:.5rem;">📊</div>
+        <div style="font-weight:600;">Analytics</div>
+        <div style="font-size:.8rem;color:var(--text-muted);">View charts & trends</div>
+    </a>
+    <a href="{{ url_for('history.export_csv') }}" class="card" style="text-align:center;text-decoration:none;transition:transform .2s;display:block;" onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform=''">
+        <div style="font-size:2rem;margin-bottom:.5rem;">📥</div>
+        <div style="font-weight:600;">Export CSV</div>
+        <div style="font-size:.8rem;color:var(--text-muted);">Download all records</div>
+    </a>
+    <a href="{{ url_for('diseases.diseases_list') }}" class="card" style="text-align:center;text-decoration:none;transition:transform .2s;display:block;" onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform=''">
+        <div style="font-size:2rem;margin-bottom:.5rem;">📚</div>
+        <div style="font-weight:600;">Disease Library</div>
+        <div style="font-size:.8rem;color:var(--text-muted);">38 diseases explained</div>
+    </a>
+</div>
+{% endblock %}

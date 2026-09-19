@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Contact — AgriSmart AI{% endblock %}
+{% block body %}
+<div style="padding-top:80px;min-height:100vh;max-width:700px;margin:0 auto;padding-bottom:3rem;">
+    <div class="section">
+        <div style="text-align:center;margin-bottom:2.5rem;">
+            <h1 style="font-size:2rem;font-weight:800;">Contact Us</h1>
+            <p style="color:var(--text-muted);margin-top:.5rem;">Have a question or feedback? We'd love to hear from you.</p>
+        </div>
+        <div class="card">
+            <form method="POST" action="{{ url_for('main.contact') }}">
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Your Name *</label>
+                        <input type="text" name="name" class="form-control" placeholder="Ramesh Kumar" required value="{{ request.form.get('name','') }}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Email Address *</label>
+                        <input type="email" name="email" class="form-control" placeholder="you@example.com" required value="{{ request.form.get('email','') }}">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Subject *</label>
+                    <input type="text" name="subject" class="form-control" placeholder="e.g. Question about disease detection" required value="{{ request.form.get('subject','') }}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Message *</label>
+                    <textarea name="message" class="form-control" rows="5" placeholder="Describe your question or feedback…" required>{{ request.form.get('message','') }}</textarea>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block btn-lg">
+                    <i class="fas fa-paper-plane"></i> Send Message
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

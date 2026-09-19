@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}{{ disease.name }} — AgriSmart AI{% endblock %}
+
+{% block body %}
+<div style="padding-top:80px;min-height:100vh;">
+    <div style="max-width:900px;margin:0 auto;padding:2rem;">
+
+        <div style="margin-bottom:1.5rem;">
+            <a href="{{ url_for('diseases.diseases_list') }}" style="color:var(--text-muted);font-size:.88rem;">
+                ← Disease Library
+            </a>
+        </div>
+
+        <!-- ── Header ─────────────────────────────────────── -->
+        <div class="result-header" style="margin-bottom:1.5rem;
+            {% if disease.severity_default == 'Healthy' %}border-left:4px solid var(--success);
+            {% elif disease.severity_default == 'Mild' %}border-left:4px solid var(--warning);
+            {% elif disease.severity_default == 'Moderate' %}border-left:4px solid #e67e22;
+            {% else %}border-left:4px solid var(--danger);{% endif %}">
+            <div style="font-size:3.5rem;">{{ disease.emoji }}</div>
+            <div>
+                <h1 style="font-size:1.6rem;font-weight:800;">{{ disease.name }}</h1>
+                <div style="color:var(--text-muted);font-size:.9rem;">Crop: {{ disease.crop }}</div>
+                <div style="margin-top:.5rem;display:flex;gap:.5rem;align-items:center;">
+                    <span class="badge {% if disease.severity_default == 'Healthy' %}badge-success{% elif disease.severity_default == 'Mild' %}badge-warning{% elif disease.severity_default == 'Moderate' %}badge-orange{% else %}badge-danger{% endif %}">
+                        {{ disease.severity_default }} Severity
+                    </span>
+                    <span style="font-size:.78rem;color:var(--text-muted);">
+                        <i class="fas fa-calendar-alt"></i> {{ disease.affected_season }}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div>
+                <div class="card" style="margin-bottom:1rem;">
+                    <div class="card-header"><h2 class="card-title"><i class="fas fa-info-circle" style="color:var(--primary-light);margin-right:.4rem;"></i> Description</h2></div>
+                    <p style="color:var(--text-muted);font-size:.9rem;line-height:1.7;">{{ disease.description }}</p>
+                </div>
+                <div class="card" style="margin-bottom:1rem;">
+                    <div class="card-header"><h2 class="card-title"><i class="fas fa-search" style="color:var(--warning);margin-right:.4rem;"></i> Symptoms</h2></div>
+                    <ul style="list-style:none;display:flex;flex-direction:column;gap:.5rem;">
+                        {% for s in disease.symptoms %}
+                        <li style="display:flex;gap:.6rem;font-size:.88rem;">
+                            <i class="fas fa-circle-dot" style="color:var(--warning);margin-top:.3rem;font-size:.65rem;flex-shrink:0;"></i>{{ s }}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="card">
+                    <div class="card-header"><h2 class="card-title"><i class="fas fa-leaf" style="color:var(--success);margin-right:.4rem;"></i> Organic Remedies</h2></div>
+                    <ul style="list-style:none;display:flex;flex-direction:column;gap:.5rem;">
+                        {% for t in disease.organic_treatment %}
+                        <li style="display:flex;gap:.6rem;font-size:.88rem;">
+                            <i class="fas fa-seedling" style="color:var(--success);margin-top:.3rem;font-size:.65rem;flex-shrink:0;"></i>{{ t }}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            <div>
+                <div class="card" style="margin-bottom:1rem;">
+                    <div class="card-header"><h2 class="card-title"><i class="fas fa-prescription-bottle" style="color:var(--danger);margin-right:.4rem;"></i> Treatment</h2></div>
+                    <ul style="list-style:none;display:flex;flex-direction:column;gap:.6rem;">
+                        {% for t in disease.treatment %}
+                        <li style="display:flex;gap:.6rem;font-size:.88rem;">
+                            <span style="background:var(--danger);color:#fff;border-radius:4px;padding:.1rem .4rem;font-size:.7rem;font-weight:700;flex-shrink:0;margin-top:.15rem;">RX</span>
+                            {{ t }}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="card">
+                    <div class="card-header"><h2 class="card-title"><i class="fas fa-shield-alt" style="color:var(--info);margin-right:.4rem;"></i> Prevention</h2></div>
+                    <ul style="list-style:none;display:flex;flex-direction:column;gap:.5rem;">
+                        {% for p in disease.prevention %}
+                        <li style="display:flex;gap:.6rem;font-size:.88rem;">
+                            <i class="fas fa-check" style="color:var(--info);margin-top:.3rem;font-size:.65rem;flex-shrink:0;"></i>{{ p }}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top:1.5rem;display:flex;gap:.75rem;">
+            {% if current_user.is_authenticated and not current_user.is_admin %}
+            <a href="{{ url_for('scan.scan_crop') }}" class="btn btn-primary">
+                <i class="fas fa-camera"></i> Scan for This Disease
+            </a>
+            {% endif %}
+            <a href="{{ url_for('diseases.diseases_list') }}" class="btn btn-outline">← All Diseases</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

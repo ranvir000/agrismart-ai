@@ -1,0 +1,132 @@
+{% extends "app_base.html" %}
+{% block title %}Weather Advisory — AgriSmart AI{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">🌤️ Weather Advisory</h1>
+        <p class="page-subtitle">Live 5-day forecast and crop-specific recommendations for {{ weather.city }}
+            {% if weather.source == 'demo' %}<span style="font-size:0.75rem;color:var(--text-muted);">(demo data — set WEATHER_API_KEY for live weather)</span>{% endif %}
+        </p>
+    </div>
+</div>
+
+<!-- ── Current Conditions ─────────────────────────────────── -->
+<div class="grid-2" style="margin-bottom:1.5rem;align-items:start;">
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title"><i class="fas fa-map-marker-alt" style="color:var(--accent);margin-right:.4rem;"></i> Current Conditions</h2>
+        </div>
+        <div style="display:flex;align-items:center;gap:1.5rem;margin-bottom:1.5rem;">
+            <div>
+                <div style="font-size:3.5rem;font-weight:800;line-height:1;">{{ weather.current_temp }}°C</div>
+                <div style="color:var(--text-muted);">{{ weather.city }}, {{ weather.country }}</div>
+            </div>
+            <div style="margin-left:auto;">
+                <img src="https://openweathermap.org/img/wn/{{ weather.forecasts[0].icon if weather.forecasts else '01d' }}@2x.png"
+                     style="width:80px;height:80px;" onerror="this.style.display='none'">
+            </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+            <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:.75rem;text-align:center;">
+                <div style="font-size:1.2rem;font-weight:700;">{{ weather.current_humidity }}%</div>
+                <div style="font-size:.78rem;color:var(--text-muted);">💧 Humidity</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:.75rem;text-align:center;">
+                <div style="font-size:1.2rem;font-weight:700;">{{ weather.forecasts[0].wind if weather.forecasts else '—' }} km/h</div>
+                <div style="font-size:.78rem;color:var(--text-muted);">💨 Wind</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Advisories -->
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title"><i class="fas fa-lightbulb" style="color:var(--accent);margin-right:.4rem;"></i> Crop Advisories</h2>
+        </div>
+        {% for adv in advisories %}
+        <div class="advisory-card">
+            <div class="advisory-icon" style="color:{{ adv.color }};"><i class="fas {{ adv.icon }}"></i></div>
+            <div>
+                <div class="advisory-title" style="color:{{ adv.color }};">{{ adv.title }}</div>
+                <div class="advisory-msg">{{ adv.message }}</div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- ── 5-Day Forecast ─────────────────────────────────────── -->
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title"><i class="fas fa-calendar-alt" style="color:var(--primary-light);margin-right:.4rem;"></i> 5-Day Forecast</h2>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;">
+        {% for day in weather.forecasts %}
+        <div style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:10px;padding:1.1rem;text-align:center;">
+            <div style="font-size:.82rem;color:var(--text-muted);margin-bottom:.4rem;">{{ day.date }}</div>
+            <img src="https://openweathermap.org/img/wn/{{ day.icon }}@2x.png" style="width:50px;height:50px;" onerror="this.style.display='none'">
+            <div style="font-size:1.1rem;font-weight:700;">{{ day.temp_max }}°</div>
+            <div style="font-size:.82rem;color:var(--text-muted);">{{ day.temp_min }}° min</div>
+            <div style="font-size:.78rem;margin-top:.35rem;color:var(--text-muted);">{{ day.description }}</div>
+            <div style="margin-top:.5rem;">
+                <span style="font-size:.78rem;background:rgba(41,128,185,0.15);border-radius:4px;padding:.15rem .4rem;color:#5dade2;">
+                    💧 {{ day.humidity }}%
+                </span>
+                <span style="font-size:.78rem;background:rgba(255,255,255,0.06);border-radius:4px;padding:.15rem .4rem;color:var(--text-muted);">
+                    💨 {{ day.wind }} km/h
+                </span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- ── Disease Risk by Condition ──────────────────────────── -->
+<div class="card" style="margin-top:1.5rem;">
+    <div class="card-header">
+        <h2 class="card-title"><i class="fas fa-virus" style="color:var(--danger);margin-right:.4rem;"></i> Weather-Disease Risk Guide</h2>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1rem;">
+        <div style="background:rgba(41,128,185,0.08);border:1px solid rgba(41,128,185,0.2);border-radius:8px;padding:1rem;">
+            <strong style="color:#5dade2;"><i class="fas fa-tint"></i> High Humidity (&gt;80%)</strong>
+            <ul style="list-style:none;margin-top:.5rem;font-size:.84rem;color:var(--text-muted);">
+                <li>⚠️ Late Blight (Potato, Tomato)</li>
+                <li>⚠️ Leaf Mold (Tomato)</li>
+                <li>⚠️ Powdery Mildew</li>
+                <li>⚠️ Downy Mildew</li>
+            </ul>
+        </div>
+        <div style="background:rgba(231,76,60,0.08);border:1px solid rgba(231,76,60,0.2);border-radius:8px;padding:1rem;">
+            <strong style="color:#e74c3c;"><i class="fas fa-thermometer-full"></i> High Heat (&gt;35°C)</strong>
+            <ul style="list-style:none;margin-top:.5rem;font-size:.84rem;color:var(--text-muted);">
+                <li>⚠️ Spider Mites</li>
+                <li>⚠️ Heat Stress / Tip Burn</li>
+                <li>⚠️ Blossom Drop</li>
+            </ul>
+        </div>
+        <div style="background:rgba(243,156,18,0.08);border:1px solid rgba(243,156,18,0.2);border-radius:8px;padding:1rem;">
+            <strong style="color:#f39c12;"><i class="fas fa-sun"></i> Dry Conditions (&lt;40% RH)</strong>
+            <ul style="list-style:none;margin-top:.5rem;font-size:.84rem;color:var(--text-muted);">
+                <li>⚠️ Powdery Mildew</li>
+                <li>⚠️ Spider Mites</li>
+                <li>⚠️ Nutrient Burn</li>
+            </ul>
+        </div>
+        <div style="background:rgba(39,174,96,0.08);border:1px solid rgba(39,174,96,0.2);border-radius:8px;padding:1rem;">
+            <strong style="color:#2ecc71;"><i class="fas fa-check-circle"></i> Ideal Conditions</strong>
+            <ul style="list-style:none;margin-top:.5rem;font-size:.84rem;color:var(--text-muted);">
+                <li>✅ 20–28°C temperature</li>
+                <li>✅ 50–70% relative humidity</li>
+                <li>✅ Good air circulation</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div style="margin-top:1rem;">
+    <a href="{{ url_for('profile.profile_page') }}" class="btn btn-outline btn-sm">
+        <i class="fas fa-map-marker-alt"></i> Change Location (in Profile)
+    </a>
+</div>
+{% endblock %}

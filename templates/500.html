@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Server Error — AgriSmart AI{% endblock %}
+{% block body %}
+<div style="padding:140px 1rem 4rem;text-align:center;min-height:80vh;">
+    <div style="font-size:4rem;margin-bottom:1rem;">⚠️</div>
+    <h1 style="font-size:2.5rem;margin-bottom:1rem;">500 - Server Error</h1>
+    <p style="color:var(--text-muted);max-width:500px;margin:0 auto 2rem;">
+        An unexpected error occurred. Our team has been notified.
+    </p>
+    <a href="{{ url_for('main.index') }}" class="btn btn-primary">Return to Homepage</a>
+</div>
+{% endblock %}

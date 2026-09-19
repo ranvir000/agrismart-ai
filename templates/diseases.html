@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Disease Library — AgriSmart AI{% endblock %}
+
+{% block body %}
+<div style="padding-top:80px;min-height:100vh;">
+    <div style="max-width:1200px;margin:0 auto;padding:2rem;">
+        <div style="margin-bottom:2rem;">
+            <div style="font-size:.8rem;text-transform:uppercase;letter-spacing:.1em;color:var(--primary-light);margin-bottom:.4rem;">📚 Encyclopedia</div>
+            <h1 style="font-size:2rem;font-weight:800;">Crop Disease Library</h1>
+            <p style="color:var(--text-muted);margin-top:.5rem;">Detailed information on all 38 diseases detectable by AgriSmart AI</p>
+        </div>
+
+        <!-- ── Filter chips ────────────────────────────────── -->
+        <div style="display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:2rem;" id="filter-row">
+            <button class="btn btn-primary btn-sm filter-btn" data-filter="all" onclick="filterDisease('all',this)">All ({{ crops.values()|map('list')|map('length')|sum }})</button>
+            {% for crop_name, diseases in crops.items() %}
+            <button class="btn btn-outline btn-sm filter-btn" data-filter="{{ crop_name }}" onclick="filterDisease('{{ crop_name }}',this)">{{ crop_name }} ({{ diseases|length }})</button>
+            {% endfor %}
+        </div>
+
+        <!-- ── Disease Grid ────────────────────────────────── -->
+        {% for crop_name, diseases in crops.items() %}
+        <div class="crop-group" data-crop="{{ crop_name }}" style="margin-bottom:2.5rem;">
+            <h2 style="font-size:1.1rem;font-weight:600;color:var(--text-muted);margin-bottom:1rem;display:flex;align-items:center;gap:.5rem;">
+                {{ diseases[0].emoji if diseases else '' }} {{ crop_name }}
+                <span class="badge badge-info">{{ diseases|length }}</span>
+            </h2>
+            <div class="disease-grid">
+                {% for disease in diseases %}
+                <a href="{{ url_for('diseases.disease_detail', disease_key=disease.key) }}" 
+                   class="disease-card" style="text-decoration:none;color:inherit;">
+                    <div class="emoji">{{ disease.emoji }}</div>
+                    <h4>{{ disease.name }}</h4>
+                    <p>{{ disease.description[:100] }}…</p>
+                    <div style="margin-top:.75rem;display:flex;justify-content:space-between;align-items:center;">
+                        <span class="badge {% if disease.severity_default == 'Healthy' %}badge-success{% elif disease.severity_default == 'Mild' %}badge-warning{% elif disease.severity_default == 'Moderate' %}badge-orange{% else %}badge-danger{% endif %}">
+                            {{ disease.severity_default }}
+                        </span>
+                        <span style="font-size:.78rem;color:var(--primary-light);">Learn more →</span>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+function filterDisease(crop, btn) {
+    document.querySelectorAll('.filter-btn').forEach(b => {
+        b.classList.remove('btn-primary');
+        b.classList.add('btn-outline');
+    });
+    btn.classList.add('btn-primary');
+    btn.classList.remove('btn-outline');
+
+    document.querySelectorAll('.crop-group').forEach(g => {
+        if (crop === 'all' || g.dataset.crop === crop) {
+            g.style.display = 'block';
+        } else {
+            g.style.display = 'none';
+        }
+    });
+}
+</script>
+{% endblock %}

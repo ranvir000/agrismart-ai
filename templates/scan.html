@@ -1,0 +1,121 @@
+{% extends "app_base.html" %}
+{% block title %}Scan Crop — AgriSmart AI{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">📸 Scan Crop Leaf</h1>
+        <p class="page-subtitle">Upload a clear photo of the affected crop leaf for AI analysis</p>
+    </div>
+</div>
+
+<div class="grid-2" style="align-items:start;">
+    <!-- ── Upload Form ─────────────────────────────────────── -->
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">Upload Leaf Image</h2>
+        </div>
+        <form method="POST" action="{{ url_for('scan.scan_crop') }}" enctype="multipart/form-data" id="scan-form">
+            <div class="upload-zone" id="drop-zone">
+                <input type="file" name="file" id="file-input" accept="image/*" required>
+                <div class="upload-zone-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+                <h3>Drag & Drop or Click to Upload</h3>
+                <p>Supported: JPG, PNG, WEBP · Max size: 10MB</p>
+                <img id="preview-img" class="preview-img" alt="Preview">
+                <div id="file-name" style="margin-top:.75rem;font-size:.85rem;color:var(--primary-light);display:none;"></div>
+            </div>
+
+            <div style="margin-top:1.25rem;">
+                <button type="submit" class="btn btn-primary btn-block btn-lg" id="submit-btn" disabled>
+                    <i class="fas fa-brain"></i> <span id="btn-text">Analyse with AI</span>
+                </button>
+            </div>
+        </form>
+
+        <div style="margin-top:1.25rem;padding:.9rem;background:rgba(244,165,53,0.06);border:1px solid rgba(244,165,53,0.2);border-radius:8px;font-size:.82rem;color:var(--text-muted);">
+            <strong style="color:var(--accent);">📌 Tips for best results:</strong><br>
+            • Use a clear, well-lit photo of a single leaf<br>
+            • Ensure the affected area is clearly visible<br>
+            • Avoid blurry or heavily shadowed images<br>
+            • Plain backgrounds give better accuracy
+        </div>
+    </div>
+
+    <!-- ── Info Panel ──────────────────────────────────────── -->
+    <div>
+        <div class="card" style="margin-bottom:1rem;">
+            <div class="card-header">
+                <h2 class="card-title"><i class="fas fa-brain" style="color:var(--primary-light);margin-right:.4rem;"></i> How the AI Works</h2>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:.75rem;">
+                <div style="display:flex;gap:.75rem;align-items:flex-start;">
+                    <div style="width:28px;height:28px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;flex-shrink:0;">1</div>
+                    <div><strong>Image Preprocessing</strong><br><span style="font-size:.82rem;color:var(--text-muted);">Resized to 224×224, normalized using ImageNet statistics</span></div>
+                </div>
+                <div style="display:flex;gap:.75rem;align-items:flex-start;">
+                    <div style="width:28px;height:28px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;flex-shrink:0;">2</div>
+                    <div><strong>MobileNetV2 Feature Extraction</strong><br><span style="font-size:.82rem;color:var(--text-muted);">Pre-trained backbone extracts 1280 feature vectors</span></div>
+                </div>
+                <div style="display:flex;gap:.75rem;align-items:flex-start;">
+                    <div style="width:28px;height:28px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;flex-shrink:0;">3</div>
+                    <div><strong>Classifier Head</strong><br><span style="font-size:.82rem;color:var(--text-muted);">Custom linear layer maps to 38 disease classes</span></div>
+                </div>
+                <div style="display:flex;gap:.75rem;align-items:flex-start;">
+                    <div style="width:28px;height:28px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;flex-shrink:0;color:#111;">4</div>
+                    <div><strong>Softmax Prediction</strong><br><span style="font-size:.82rem;color:var(--text-muted);">Class probabilities ranked, top prediction selected</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title"><i class="fas fa-leaf" style="color:var(--primary-light);margin-right:.4rem;"></i> Supported Crops</h2>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:.4rem;">
+                {% for crop in ['🍎 Apple','🍒 Cherry','🌽 Corn','🍇 Grape','🍊 Orange','🍑 Peach','🫑 Pepper','🥔 Potato','🍓 Strawberry','🍅 Tomato','🫘 Soybean','🎃 Squash','🫐 Blueberry','🍓 Raspberry'] %}
+                <span style="background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:6px;padding:.25rem .6rem;font-size:.78rem;">{{ crop }}</span>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+const previewImg = document.getElementById('preview-img');
+const fileName = document.getElementById('file-name');
+const submitBtn = document.getElementById('submit-btn');
+const scanForm = document.getElementById('scan-form');
+
+function showPreview(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+        previewImg.src = e.target.result;
+        previewImg.style.display = 'block';
+        fileName.textContent = '✓ ' + file.name;
+        fileName.style.display = 'block';
+        submitBtn.disabled = false;
+    };
+    reader.readAsDataURL(file);
+}
+
+fileInput.addEventListener('change', () => showPreview(fileInput.files[0]));
+
+// Drag & drop
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) { fileInput.files = e.dataTransfer.files; showPreview(file); }
+});
+
+scanForm.addEventListener('submit', () => {
+    submitBtn.disabled = true;
+    document.getElementById('btn-text').innerHTML = '<span class="spinner" style="vertical-align:middle;margin-right:.4rem;"></span>Analysing…';
+});
+</script>
+{% endblock %}

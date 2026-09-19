@@ -1,0 +1,163 @@
+{% extends "app_base.html" %}
+{% block title %}Results — {{ scan.disease_name }} — AgriSmart AI{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">🔬 Scan Results</h1>
+        <p class="page-subtitle">Analysis completed · {{ scan.timestamp.strftime('%B %d, %Y at %H:%M') }}</p>
+    </div>
+    <div style="display:flex;gap:.6rem;">
+        <a href="{{ url_for('scan.download_pdf', scan_id=scan.id) }}" class="btn btn-outline">
+            <i class="fas fa-file-pdf"></i> Download PDF
+        </a>
+        <a href="{{ url_for('scan.scan_crop') }}" class="btn btn-primary">
+            <i class="fas fa-camera"></i> New Scan
+        </a>
+    </div>
+</div>
+
+<!-- ── Result Header ──────────────────────────────────────── -->
+<div class="result-header" style="margin-bottom:1.5rem;
+    {% if scan.severity == 'Healthy' %}border-left:4px solid var(--success);
+    {% elif scan.severity == 'Mild' %}border-left:4px solid var(--warning);
+    {% elif scan.severity == 'Moderate' %}border-left:4px solid #e67e22;
+    {% else %}border-left:4px solid var(--danger);{% endif %}">
+    <div class="result-emoji">{{ disease_info.emoji }}</div>
+    <div style="flex:1;">
+        <div class="result-disease">{{ scan.disease_name }}</div>
+        <div class="result-crop">Crop: {{ scan.crop_type }}</div>
+        <div style="margin-top:.5rem;">
+            <span class="badge {% if scan.severity == 'Healthy' %}badge-success{% elif scan.severity == 'Mild' %}badge-warning{% elif scan.severity == 'Moderate' %}badge-orange{% else %}badge-danger{% endif %}">
+                {{ scan.severity }} Severity
+            </span>
+        </div>
+        <div class="confidence-bar" style="margin-top:.75rem;">
+            <div style="display:flex;justify-content:space-between;font-size:.78rem;color:var(--text-muted);margin-bottom:.3rem;">
+                <span>AI Confidence</span>
+                <strong style="color:var(--text);">{{ (scan.confidence * 100) | round(1) }}%</strong>
+            </div>
+            <div class="confidence-track">
+                <div class="confidence-fill" id="conf-bar" style="width:0%;"></div>
+            </div>
+        </div>
+    </div>
+    <img src="{{ url_for('static', filename='uploads/' + scan.image_filename) }}"
+         style="width:120px;height:120px;border-radius:12px;object-fit:cover;border:1px solid var(--border);"
+         onerror="this.style.display='none'"
+         alt="Scanned leaf">
+</div>
+
+<div class="grid-2" style="align-items:start;">
+    <!-- ── Left Column ─────────────────────────────────────── -->
+    <div>
+        <!-- Description -->
+        <div class="card" style="margin-bottom:1rem;">
+            <div class="card-header">
+                <h2 class="card-title"><i class="fas fa-info-circle" style="color:var(--primary-light);margin-right:.4rem;"></i> About This Disease</h2>
+            </div>
+            <p style="color:var(--text-muted);font-size:.9rem;line-height:1.7;">{{ disease_info.description }}</p>
+        </div>
+
+        <!-- Symptoms -->
+        <div class="card" style="margin-bottom:1rem;">
+            <div class="card-header">
+                <h2 class="card-title"><i class="fas fa-search" style="color:var(--warning);margin-right:.4rem;"></i> Symptoms Detected</h2>
+            </div>
+            <ul style="list-style:none;display:flex;flex-direction:column;gap:.5rem;">
+                {% for s in disease_info.symptoms %}
+                <li style="display:flex;gap:.6rem;align-items:flex-start;font-size:.88rem;">
+                    <i class="fas fa-circle-dot" style="color:var(--warning);margin-top:.25rem;font-size:.7rem;flex-shrink:0;"></i>
+                    {{ s }}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <!-- Organic Treatment -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title"><i class="fas fa-leaf" style="color:var(--success);margin-right:.4rem;"></i> Organic Remedies</h2>
+            </div>
+            <ul style="list-style:none;display:flex;flex-direction:column;gap:.5rem;">
+                {% for t in disease_info.organic_treatment %}
+                <li style="display:flex;gap:.6rem;align-items:flex-start;font-size:.88rem;">
+                    <i class="fas fa-seedling" style="color:var(--success);margin-top:.25rem;font-size:.7rem;flex-shrink:0;"></i>
+                    {{ t }}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- ── Right Column ────────────────────────────────────── -->
+    <div>
+        <!-- Treatment -->
+        <div class="card" style="margin-bottom:1rem;">
+            <div class="card-header">
+                <h2 class="card-title"><i class="fas fa-prescription-bottle" style="color:var(--danger);margin-right:.4rem;"></i> Treatment Plan</h2>
+            </div>
+            <ul style="list-style:none;display:flex;flex-direction:column;gap:.6rem;">
+                {% for t in disease_info.treatment %}
+                <li style="display:flex;gap:.6rem;align-items:flex-start;font-size:.88rem;">
+                    <span style="background:var(--danger);color:#fff;border-radius:4px;padding:.1rem .4rem;font-size:.7rem;font-weight:700;flex-shrink:0;margin-top:.15rem;">RX</span>
+                    {{ t }}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <!-- Prevention -->
+        <div class="card" style="margin-bottom:1rem;">
+            <div class="card-header">
+                <h2 class="card-title"><i class="fas fa-shield-alt" style="color:var(--info);margin-right:.4rem;"></i> Prevention Strategies</h2>
+            </div>
+            <ul style="list-style:none;display:flex;flex-direction:column;gap:.5rem;">
+                {% for p in disease_info.prevention %}
+                <li style="display:flex;gap:.6rem;align-items:flex-start;font-size:.88rem;">
+                    <i class="fas fa-check" style="color:var(--info);margin-top:.25rem;font-size:.7rem;flex-shrink:0;"></i>
+                    {{ p }}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <!-- Scan metadata -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title"><i class="fas fa-info" style="color:var(--text-muted);margin-right:.4rem;"></i> Scan Details</h2>
+            </div>
+            <table style="font-size:.85rem;">
+                <tr><td style="color:var(--text-muted);padding:.35rem 0;">Scan ID</td><td style="font-weight:600;">#{{ scan.id }}</td></tr>
+                <tr><td style="color:var(--text-muted);padding:.35rem 0;">Crop</td><td style="font-weight:600;">{{ scan.crop_type }}</td></tr>
+                <tr><td style="color:var(--text-muted);padding:.35rem 0;">Disease</td><td style="font-weight:600;">{{ scan.disease_name }}</td></tr>
+                <tr><td style="color:var(--text-muted);padding:.35rem 0;">Severity</td><td><span class="badge {% if scan.severity == 'Healthy' %}badge-success{% elif scan.severity == 'Mild' %}badge-warning{% elif scan.severity == 'Moderate' %}badge-orange{% else %}badge-danger{% endif %}">{{ scan.severity }}</span></td></tr>
+                <tr><td style="color:var(--text-muted);padding:.35rem 0;">Confidence</td><td style="font-weight:600;">{{ (scan.confidence * 100)|round(1) }}%</td></tr>
+                <tr><td style="color:var(--text-muted);padding:.35rem 0;">Active Season</td><td style="font-weight:600;">{{ disease_info.affected_season }}</td></tr>
+                <tr><td style="color:var(--text-muted);padding:.35rem 0;">Date</td><td style="font-weight:600;">{{ scan.timestamp.strftime('%Y-%m-%d %H:%M') }}</td></tr>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div style="display:flex;gap:.75rem;margin-top:1.5rem;">
+    <a href="{{ url_for('scan.scan_crop') }}" class="btn btn-primary">
+        <i class="fas fa-camera"></i> Scan Another Crop
+    </a>
+    <a href="{{ url_for('history.history_page') }}" class="btn btn-outline">
+        <i class="fas fa-history"></i> View All History
+    </a>
+    <a href="{{ url_for('diseases.disease_detail', disease_key=scan.disease_key) }}" class="btn btn-outline">
+        <i class="fas fa-book"></i> Full Disease Info
+    </a>
+</div>
+
+<script>
+// Animate confidence bar on load
+window.addEventListener('load', () => {
+    setTimeout(() => {
+        document.getElementById('conf-bar').style.width = '{{ (scan.confidence * 100)|round(1) }}%';
+    }, 200);
+});
+</script>
+{% endblock %}

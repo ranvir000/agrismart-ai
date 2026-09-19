@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel — AgriSmart AI</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<nav class="navbar">
+    <a href="{{ url_for('main.index') }}" class="navbar-brand">
+        <span class="brand-icon">🌿</span> Agri<span>Smart</span> <span style="color:var(--danger);font-size:.8rem;margin-left:.3rem;">ADMIN</span>
+    </a>
+    <div class="nav-cta">
+        <span style="font-size:.85rem;color:var(--text-muted);">{{ current_user.username }}</span>
+        <a href="{{ url_for('auth.logout') }}" class="btn btn-outline btn-sm">Logout</a>
+    </div>
+</nav>
+
+<div style="position:fixed;top:70px;right:1rem;z-index:9999;max-width:380px;">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}{% for category, message in messages %}
+        <div class="alert alert-{{ 'success' if category=='success' else 'danger' if category=='danger' else 'info' }}" onclick="this.remove()" style="cursor:pointer;">
+            {{ message }}
+        </div>
+        {% endfor %}{% endif %}
+    {% endwith %}
+</div>
+
+<div style="padding:80px 2rem 2rem;max-width:1200px;margin:0 auto;">
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">🛡️ Admin Panel</h1>
+            <p class="page-subtitle">Manage users, scans, and contact messages</p>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid" style="margin-bottom:2rem;">
+        <div class="stat-card"><div class="stat-icon blue"><i class="fas fa-users"></i></div><div><div class="stat-value">{{ total_users }}</div><div class="stat-label">Total Users</div></div></div>
+        <div class="stat-card"><div class="stat-icon green"><i class="fas fa-camera"></i></div><div><div class="stat-value">{{ total_scans }}</div><div class="stat-label">Total Scans</div></div></div>
+        <div class="stat-card"><div class="stat-icon yellow"><i class="fas fa-envelope"></i></div><div><div class="stat-value">{{ total_messages }}</div><div class="stat-label">Messages</div></div></div>
+    </div>
+
+    <!-- Users Table -->
+    <div class="card" style="margin-bottom:1.5rem;">
+        <div class="card-header"><h2 class="card-title"><i class="fas fa-users" style="margin-right:.4rem;color:var(--primary-light);"></i> All Users</h2></div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Username</th><th>Email</th><th>Role</th><th>City</th><th>Joined</th><th>Actions</th></tr></thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td><strong>{{ user.username }}</strong></td>
+                        <td style="color:var(--text-muted);">{{ user.email }}</td>
+                        <td>
+                            <span class="badge {% if user.is_admin %}badge-danger{% else %}badge-success{% endif %}">
+                                {{ 'Admin' if user.is_admin else 'Farmer' }}
+                            </span>
+                        </td>
+                        <td style="color:var(--text-muted);">{{ user.city or '—' }}</td>
+                        <td style="color:var(--text-muted);font-size:.82rem;">{{ user.created_at.strftime('%b %d, %Y') }}</td>
+                        <td>
+                            {% if user.id != current_user.id %}
+                            <div style="display:flex;gap:.4rem;">
+                                <form method="POST" action="{{ url_for('admin.toggle_admin', user_id=user.id) }}" style="display:inline;">
+                                    <button type="submit" class="btn btn-outline btn-sm" title="Toggle admin">
+                                        <i class="fas fa-user-shield"></i>
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ url_for('admin.delete_user', user_id=user.id) }}"
+                                      onsubmit="return confirm('Delete user {{ user.username }} and all their data?');">
+                                    <button type="submit" class="btn btn-danger btn-sm">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                            {% else %}
+                            <span style="color:var(--text-muted);font-size:.8rem;">You</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Recent Scans -->
+    <div class="card" style="margin-bottom:1.5rem;">
+        <div class="card-header"><h2 class="card-title"><i class="fas fa-camera" style="margin-right:.4rem;color:var(--primary-light);"></i> Recent Scans (All Users)</h2></div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>User</th><th>Crop</th><th>Disease</th><th>Severity</th><th>Confidence</th><th>Date</th></tr></thead>
+                <tbody>
+                    {% for scan in recent_scans %}
+                    <tr>
+                        <td>{{ scan.user.username }}</td>
+                        <td>{{ scan.crop_type }}</td>
+                        <td>{{ scan.disease_name }}</td>
+                        <td><span class="badge {% if scan.severity == 'Healthy' %}badge-success{% elif scan.severity == 'Mild' %}badge-warning{% elif scan.severity == 'Moderate' %}badge-orange{% else %}badge-danger{% endif %}">{{ scan.severity }}</span></td>
+                        <td>{{ (scan.confidence * 100)|round(1) }}%</td>
+                        <td style="font-size:.82rem;color:var(--text-muted);">{{ scan.timestamp.strftime('%b %d, %Y') }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="6" style="text-align:center;color:var(--text-muted);">No scans yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Contact Messages -->
+    <div class="card">
+        <div class="card-header"><h2 class="card-title"><i class="fas fa-envelope" style="margin-right:.4rem;color:var(--primary-light);"></i> Contact Messages</h2></div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Name</th><th>Email</th><th>Subject</th><th>Date</th><th>Status</th><th>Action</th></tr></thead>
+                <tbody>
+                    {% for msg in messages %}
+                    <tr>
+                        <td>{{ msg.name }}</td>
+                        <td style="color:var(--text-muted);">{{ msg.email }}</td>
+                        <td>{{ msg.subject }}</td>
+                        <td style="font-size:.82rem;color:var(--text-muted);">{{ msg.timestamp.strftime('%b %d') }}</td>
+                        <td><span class="badge {% if msg.is_read %}badge-success{% else %}badge-warning{% endif %}">{{ 'Read' if msg.is_read else 'Unread' }}</span></td>
+                        <td>
+                            {% if not msg.is_read %}
+                            <form method="POST" action="{{ url_for('admin.mark_read', msg_id=msg.id) }}">
+                                <button type="submit" class="btn btn-outline btn-sm">Mark Read</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="6" style="text-align:center;color:var(--text-muted);">No messages yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+<script>
+setTimeout(() => { document.querySelectorAll('.alert').forEach(a => { a.style.opacity='0'; setTimeout(()=>a.remove(),400); }); }, 5000);
+</script>
+</body>
+</html>

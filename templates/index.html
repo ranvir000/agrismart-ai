@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}AgriSmart AI — Intelligent Crop Disease Detection{% endblock %}
+{% block body %}
+
+<!-- ── Hero ─────────────────────────────────────────────── -->
+<section class="hero">
+    <div class="hero-content">
+        <div class="hero-badge">
+            <i class="fas fa-leaf"></i>
+            AI-Powered Agriculture · PlantVillage Dataset · 38 Disease Classes
+        </div>
+        <h1>
+            Detect Crop Diseases<br>
+            with <span class="highlight">AI Precision</span>
+        </h1>
+        <p>
+            Upload a photo of any crop leaf — our MobileNetV2 deep learning model 
+            analyzes it in seconds and provides expert treatment recommendations.
+        </p>
+        <div class="hero-actions">
+            {% if current_user.is_authenticated and not current_user.is_admin %}
+                <a href="{{ url_for('scan.scan_crop') }}" class="btn btn-accent btn-lg">
+                    <i class="fas fa-camera"></i> Scan a Crop Now
+                </a>
+                <a href="{{ url_for('dashboard.dashboard') }}" class="btn btn-outline btn-lg">
+                    <i class="fas fa-th-large"></i> Dashboard
+                </a>
+            {% else %}
+                <a href="{{ url_for('auth.register') }}" class="btn btn-accent btn-lg">
+                    <i class="fas fa-seedling"></i> Start Free — Get Started
+                </a>
+                <a href="{{ url_for('main.how_it_works') }}" class="btn btn-outline btn-lg">
+                    <i class="fas fa-brain"></i> How It Works
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Stats row -->
+    <div style="margin-top:4rem;display:flex;gap:2rem;justify-content:center;flex-wrap:wrap;position:relative;">
+        <div style="text-align:center;">
+            <div style="font-size:2rem;font-weight:800;color:var(--accent);">38</div>
+            <div style="font-size:0.82rem;color:var(--text-muted);">Disease Classes</div>
+        </div>
+        <div style="width:1px;background:var(--border);"></div>
+        <div style="text-align:center;">
+            <div style="font-size:2rem;font-weight:800;color:var(--accent);">54,000+</div>
+            <div style="font-size:0.82rem;color:var(--text-muted);">Training Images</div>
+        </div>
+        <div style="width:1px;background:var(--border);"></div>
+        <div style="text-align:center;">
+            <div style="font-size:2rem;font-weight:800;color:var(--accent);">14</div>
+            <div style="font-size:0.82rem;color:var(--text-muted);">Crop Types</div>
+        </div>
+        <div style="width:1px;background:var(--border);"></div>
+        <div style="text-align:center;">
+            <div style="font-size:2rem;font-weight:800;color:var(--accent);">Real-Time</div>
+            <div style="font-size:0.82rem;color:var(--text-muted);">Weather Advisory</div>
+        </div>
+    </div>
+</section>
+
+<!-- ── Features ──────────────────────────────────────────── -->
+<section class="section">
+    <div class="section-center">
+        <div class="section-label">What We Offer</div>
+        <h2 class="section-title">Everything a Smart Farmer Needs</h2>
+        <p class="section-sub">From instant disease diagnosis to live weather advisories — AgriSmart covers your entire crop health workflow.</p>
+    </div>
+    <div class="features-grid">
+        <div class="feature-card">
+            <div class="feature-icon"><i class="fas fa-camera"></i></div>
+            <h3>Instant Disease Detection</h3>
+            <p>Upload a photo of any crop leaf and get an AI diagnosis in under 3 seconds using MobileNetV2 Transfer Learning.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon"><i class="fas fa-cloud-sun"></i></div>
+            <h3>Live Weather Integration</h3>
+            <p>Real-time 5-day weather forecasts for your location with disease risk advisories based on temperature and humidity.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon"><i class="fas fa-book-medical"></i></div>
+            <h3>Disease Encyclopedia</h3>
+            <p>Detailed information on 38 plant diseases — symptoms, treatments, organic remedies, and prevention strategies.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon"><i class="fas fa-chart-line"></i></div>
+            <h3>Health Analytics</h3>
+            <p>Track your crop health over time with visual charts — disease trends, severity distribution, and scan frequency.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon"><i class="fas fa-file-pdf"></i></div>
+            <h3>PDF Health Reports</h3>
+            <p>Download a complete crop health report for every scan — perfect for sharing with agronomists or keeping records.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon"><i class="fas fa-download"></i></div>
+            <h3>CSV Export</h3>
+            <p>Export your complete scan history as a CSV for further analysis, record keeping, or insurance documentation.</p>
+        </div>
+    </div>
+</section>
+
+<!-- ── How It Works ──────────────────────────────────────── -->
+<section class="section" style="background:rgba(26,122,74,0.04);border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
+    <div class="section-center">
+        <div class="section-label">Process</div>
+        <h2 class="section-title">Three Steps to Crop Safety</h2>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:2rem;margin-top:2rem;">
+        <div style="text-align:center;padding:2rem 1rem;">
+            <div style="width:64px;height:64px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:1.6rem;margin:0 auto 1rem;color:white;font-weight:700;">1</div>
+            <h3 style="margin-bottom:0.5rem;">Upload Crop Photo</h3>
+            <p style="color:var(--text-muted);font-size:0.9rem;">Take a clear photo of the affected leaf and upload it directly from your phone or computer.</p>
+        </div>
+        <div style="text-align:center;padding:2rem 1rem;">
+            <div style="width:64px;height:64px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:1.6rem;margin:0 auto 1rem;color:#111;font-weight:700;">2</div>
+            <h3 style="margin-bottom:0.5rem;">AI Analysis</h3>
+            <p style="color:var(--text-muted);font-size:0.9rem;">Our MobileNetV2 CNN processes the image through 38 disease classes using PyTorch transfer learning.</p>
+        </div>
+        <div style="text-align:center;padding:2rem 1rem;">
+            <div style="width:64px;height:64px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:1.6rem;margin:0 auto 1rem;color:white;font-weight:700;">3</div>
+            <h3 style="margin-bottom:0.5rem;">Get Treatment Plan</h3>
+            <p style="color:var(--text-muted);font-size:0.9rem;">Receive a detailed report with disease name, severity, organic treatments, and prevention steps.</p>
+        </div>
+    </div>
+</section>
+
+<!-- ── Supported Crops ───────────────────────────────────── -->
+<section class="section section-center">
+    <div class="section-label">Coverage</div>
+    <h2 class="section-title">Supported Crops</h2>
+    <p class="section-sub">AgriSmart can diagnose diseases in 14 major crop types from the PlantVillage dataset.</p>
+    <div style="display:flex;flex-wrap:wrap;gap:0.75rem;justify-content:center;margin-top:1.5rem;">
+        {% for crop in ['🍎 Apple','🫐 Blueberry','🍒 Cherry','🌽 Corn','🍇 Grape','🍊 Orange','🍑 Peach','🫑 Pepper','🥔 Potato','🍓 Strawberry','🫘 Soybean','🎃 Squash','🍅 Tomato','🍓 Raspberry'] %}
+        <span style="background:var(--bg-card);border:1px solid var(--border);border-radius:20px;padding:0.4rem 0.9rem;font-size:0.9rem;">{{ crop }}</span>
+        {% endfor %}
+    </div>
+</section>
+
+<!-- ── CTA ───────────────────────────────────────────────── -->
+<section style="padding:4rem 2rem;text-align:center;background:radial-gradient(ellipse at center,rgba(26,122,74,0.2),transparent 70%);">
+    <h2 style="font-size:2rem;font-weight:800;margin-bottom:0.75rem;">Ready to Protect Your Harvest?</h2>
+    <p style="color:var(--text-muted);margin-bottom:2rem;">Join AgriSmart today. Free to use — no credit card required.</p>
+    <a href="{{ url_for('auth.register') }}" class="btn btn-accent btn-lg">
+        <i class="fas fa-rocket"></i> Start for Free
+    </a>
+</section>
+
+{% endblock %}

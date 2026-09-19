@@ -1,0 +1,134 @@
+{% extends "app_base.html" %}
+{% block title %}Profile — AgriSmart AI{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">⚙️ My Profile</h1>
+        <p class="page-subtitle">Manage your account settings and farm details</p>
+    </div>
+</div>
+
+<div class="grid-2" style="align-items:start;">
+    <!-- ── Update Profile Form ────────────────────────────── -->
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title"><i class="fas fa-user-cog" style="color:var(--primary-light);margin-right:.4rem;"></i> Account Details</h2>
+        </div>
+        <form method="POST" action="{{ url_for('profile.profile_page') }}">
+            <div class="form-group">
+                <label class="form-label">Username</label>
+                <input type="text" name="username" class="form-control" value="{{ current_user.username }}">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Email (read-only)</label>
+                <input type="email" class="form-control" value="{{ current_user.email }}" disabled style="opacity:.6;">
+            </div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label">City</label>
+                    <input type="text" name="city" class="form-control" value="{{ current_user.city or '' }}" placeholder="e.g. Ludhiana">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">State</label>
+                    <input type="text" name="state" class="form-control" value="{{ current_user.state or '' }}" placeholder="e.g. Punjab">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Farm Name</label>
+                <input type="text" name="farm_name" class="form-control" value="{{ current_user.farm_name or '' }}" placeholder="e.g. Green Valley Farm">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Phone</label>
+                <input type="text" name="phone" class="form-control" value="{{ current_user.phone or '' }}" placeholder="+91 98765 43210">
+            </div>
+
+            <div class="divider"></div>
+            <h3 style="font-size:1rem;font-weight:600;margin-bottom:1rem;color:var(--text-muted);">Change Password (optional)</h3>
+            <div class="form-group">
+                <label class="form-label">Current Password</label>
+                <div class="input-group">
+                    <input type="password" name="current_password" id="pwd-current" class="form-control" placeholder="Enter current password">
+                    <span class="input-group-icon" onclick="togglePwd('pwd-current', this)"><i class="fas fa-eye"></i></span>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">New Password</label>
+                <div class="input-group">
+                    <input type="password" name="new_password" id="pwd-new" class="form-control" placeholder="Enter new password (min. 6 chars)">
+                    <span class="input-group-icon" onclick="togglePwd('pwd-new', this)"><i class="fas fa-eye"></i></span>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block">
+                <i class="fas fa-save"></i> Save Changes
+            </button>
+        </form>
+    </div>
+
+    <!-- ── Stats Panel ────────────────────────────────────── -->
+    <div>
+        <div class="card" style="margin-bottom:1rem;text-align:center;">
+            <div style="width:72px;height:72px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:700;color:#fff;margin:0 auto .75rem;">
+                {{ current_user.username[0].upper() }}
+            </div>
+            <div style="font-size:1.2rem;font-weight:700;">{{ current_user.username }}</div>
+            <div style="color:var(--text-muted);font-size:.88rem;">{{ current_user.email }}</div>
+            <div style="margin-top:.5rem;">
+                <span class="badge {% if current_user.is_admin %}badge-danger{% else %}badge-success{% endif %}">
+                    {{ 'Admin' if current_user.is_admin else 'Farmer' }}
+                </span>
+            </div>
+            <div style="margin-top:.75rem;font-size:.82rem;color:var(--text-muted);">
+                <i class="fas fa-map-marker-alt" style="margin-right:.3rem;"></i>
+                {{ current_user.city or 'City not set' }}, {{ current_user.state or '' }}
+            </div>
+            {% if current_user.farm_name %}
+            <div style="margin-top:.35rem;font-size:.82rem;color:var(--text-muted);">
+                <i class="fas fa-tractor" style="margin-right:.3rem;"></i> {{ current_user.farm_name }}
+            </div>
+            {% endif %}
+            <div style="margin-top:.35rem;font-size:.78rem;color:var(--text-muted);">
+                Member since {{ current_user.created_at.strftime('%B %Y') }}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title"><i class="fas fa-chart-bar" style="color:var(--primary-light);margin-right:.4rem;"></i> My Stats</h2>
+            </div>
+            {% set total = current_user.scans | length %}
+            {% set healthy = current_user.scans | selectattr('severity', 'equalto', 'Healthy') | list | length %}
+            <div style="display:flex;flex-direction:column;gap:.75rem;">
+                <div style="display:flex;justify-content:space-between;">
+                    <span style="color:var(--text-muted);font-size:.9rem;">Total Scans</span>
+                    <strong>{{ total }}</strong>
+                </div>
+                <div style="display:flex;justify-content:space-between;">
+                    <span style="color:var(--text-muted);font-size:.9rem;">Healthy Results</span>
+                    <strong style="color:var(--success);">{{ healthy }}</strong>
+                </div>
+                <div style="display:flex;justify-content:space-between;">
+                    <span style="color:var(--text-muted);font-size:.9rem;">Diseases Found</span>
+                    <strong style="color:var(--warning);">{{ total - healthy }}</strong>
+                </div>
+                {% if total > 0 %}
+                <div style="display:flex;justify-content:space-between;">
+                    <span style="color:var(--text-muted);font-size:.9rem;">Health Rate</span>
+                    <strong>{{ ((healthy / total) * 100)|round(0)|int }}%</strong>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function togglePwd(fieldId, icon) {
+    const f = document.getElementById(fieldId);
+    const i = icon.querySelector('i');
+    if (f.type === 'password') { f.type = 'text'; i.className = 'fas fa-eye-slash'; }
+    else { f.type = 'password'; i.className = 'fas fa-eye'; }
+}
+</script>
+{% endblock %}
