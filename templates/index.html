@@ -3,36 +3,54 @@
 {% block body %}
 
 <!-- ── Hero ─────────────────────────────────────────────── -->
-<section class="hero">
-    <div class="hero-content">
-        <div class="hero-badge">
-            <i class="fas fa-leaf"></i>
-            AI-Powered Agriculture · PlantVillage Dataset · 38 Disease Classes
+<section class="hero" style="position:relative;overflow:hidden;">
+    <!-- Hero background image -->
+    <div style="position:absolute;inset:0;z-index:0;">
+        <img src="{{ url_for('static', filename='hero.jpg') }}" 
+             alt="AgriSmart AI" 
+             style="width:100%;height:100%;object-fit:cover;object-position:center;opacity:0.18;">
+        <div style="position:absolute;inset:0;background:linear-gradient(135deg,rgba(10,26,18,0.97) 0%,rgba(10,26,18,0.85) 50%,rgba(10,26,18,0.6) 100%);"></div>
+    </div>
+
+    <div style="position:relative;z-index:1;display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:center;max-width:1200px;margin:0 auto;padding:0 1.5rem;width:100%;">
+        <div class="hero-content">
+            <div class="hero-badge">
+                <i class="fas fa-leaf"></i>
+                AI-Powered Agriculture · PlantVillage Dataset · 38 Disease Classes
+            </div>
+            <h1>
+                Detect Crop Diseases<br>
+                with <span class="highlight">AI Precision</span>
+            </h1>
+            <p>
+                Upload a photo of any crop leaf — our MobileNetV2 deep learning model 
+                analyzes it in seconds and provides expert treatment recommendations.
+            </p>
+            <div class="hero-actions">
+                {% if current_user.is_authenticated and not current_user.is_admin %}
+                    <a href="{{ url_for('scan.scan_crop') }}" class="btn btn-accent btn-lg">
+                        <i class="fas fa-camera"></i> Scan a Crop Now
+                    </a>
+                    <a href="{{ url_for('dashboard.dashboard') }}" class="btn btn-outline btn-lg">
+                        <i class="fas fa-th-large"></i> Dashboard
+                    </a>
+                {% else %}
+                    <a href="{{ url_for('auth.register') }}" class="btn btn-accent btn-lg">
+                        <i class="fas fa-seedling"></i> Start Free — Get Started
+                    </a>
+                    <a href="{{ url_for('main.how_it_works') }}" class="btn btn-outline btn-lg">
+                        <i class="fas fa-brain"></i> How It Works
+                    </a>
+                {% endif %}
+            </div>
         </div>
-        <h1>
-            Detect Crop Diseases<br>
-            with <span class="highlight">AI Precision</span>
-        </h1>
-        <p>
-            Upload a photo of any crop leaf — our MobileNetV2 deep learning model 
-            analyzes it in seconds and provides expert treatment recommendations.
-        </p>
-        <div class="hero-actions">
-            {% if current_user.is_authenticated and not current_user.is_admin %}
-                <a href="{{ url_for('scan.scan_crop') }}" class="btn btn-accent btn-lg">
-                    <i class="fas fa-camera"></i> Scan a Crop Now
-                </a>
-                <a href="{{ url_for('dashboard.dashboard') }}" class="btn btn-outline btn-lg">
-                    <i class="fas fa-th-large"></i> Dashboard
-                </a>
-            {% else %}
-                <a href="{{ url_for('auth.register') }}" class="btn btn-accent btn-lg">
-                    <i class="fas fa-seedling"></i> Start Free — Get Started
-                </a>
-                <a href="{{ url_for('main.how_it_works') }}" class="btn btn-outline btn-lg">
-                    <i class="fas fa-brain"></i> How It Works
-                </a>
-            {% endif %}
+        <!-- Hero image panel -->
+        <div style="display:flex;justify-content:center;align-items:center;">
+            <div style="border-radius:20px;overflow:hidden;border:2px solid rgba(46,160,94,0.3);box-shadow:0 20px 60px rgba(0,0,0,0.6);max-width:480px;width:100%;">
+                <img src="{{ url_for('static', filename='hero.jpg') }}" 
+                     alt="AgriSmart AI Crop Disease Detection" 
+                     style="width:100%;display:block;">
+            </div>
         </div>
     </div>
 
