@@ -35,13 +35,9 @@ def scan_crop():
             filepath = os.path.join(UPLOAD_FOLDER, unique_filename)
             file.save(filepath)
             
-            # Read optional crop hint or explicit disease target from user
-            crop_hint = request.form.get('crop_type', '').strip()
-            target_disease = request.form.get('target_disease', '').strip()
-
-            # Analyze image with crop hint or exact target override
+            # Analyze image using deep learning model & metadata
             disease_key, confidence, severity = analyze_image(
-                filepath, crop_hint=crop_hint, forced_disease=target_disease
+                filepath, original_filename=filename
             )
             disease_info = get_disease(disease_key)
             
