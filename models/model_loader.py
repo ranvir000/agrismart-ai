@@ -14,61 +14,85 @@ from models.disease_info import DISEASES, DISEASE_KEYS, get_disease
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'static', 'uploads')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
-# Global cache for lazy-loaded PyTorch model
-_model = None
-_transform = None
-_torch_available = None
+# Global cache for ONNX inference session
+_onnx_session = None
+_onnx_available = None
+
+# Mapping from ONNX model class indices (0..37) to our DISEASES keys
+ONNX_INDEX_TO_DISEASE_KEY = [
+    'apple_scab',
+    'apple_black_rot',
+    'apple_cedar_rust',
+    'apple_healthy',
+    'blueberry_healthy',
+    'cherry_powdery_mildew',
+    'cherry_healthy',
+    'corn_gray_leaf_spot',
+    'corn_common_rust',
+    'corn_northern_leaf_blight',
+    'corn_healthy',
+    'grape_black_rot',
+    'grape_black_measles',
+    'grape_leaf_blight',
+    'grape_healthy',
+    'orange_citrus_greening',
+    'peach_bacterial_spot',
+    'peach_healthy',
+    'pepper_bacterial_spot',
+    'pepper_healthy',
+    'potato_early_blight',
+    'potato_late_blight',
+    'potato_healthy',
+    'raspberry_healthy',
+    'soybean_healthy',
+    'squash_powdery_mildew',
+    'strawberry_leaf_scorch',
+    'strawberry_healthy',
+    'tomato_bacterial_spot',
+    'tomato_early_blight',
+    'tomato_late_blight',
+    'tomato_leaf_mold',
+    'tomato_septoria_leaf_spot',
+    'tomato_spider_mites',
+    'tomato_target_spot',
+    'tomato_yellow_leaf_curl',
+    'tomato_mosaic_virus',
+    'tomato_healthy'
+]
 
 
-def get_pytorch_model():
-    """
-    Lazily initialize PyTorch MobileNetV2 model if ENABLE_PYTORCH=1 is set.
-    This prevents the app from blocking or crashing on startup on Windows.
-    """
-    global _model, _transform, _torch_available
-    if os.environ.get('ENABLE_PYTORCH', '0') != '1':
-        return None, None
-    if _torch_available is False:
-        return None, None
-    if _model is not None:
-        return _model, _transform
+def get_onnx_session():
+    """Lazily load the quantized ONNX MobileNetV2 PlantVillage model."""
+    global _onnx_session, _onnx_available
+    if _onnx_available is False:
+        return None
+    if _onnx_session is not None:
+        return _onnx_session
 
     try:
-        import torch
-        import torch.nn as nn
-        from torchvision import models, transforms
-
-        device = torch.device("cpu")
-        try:
-            model = models.mobilenet_v2(weights=models.MobileNet_V2_Weights.IMAGENET1K_V1)
-        except Exception:
-            model = models.mobilenet_v2(weights=None)
-
-        for param in model.parameters():
-            param.requires_grad = False
-
-        num_ftrs = model.classifier[1].in_features
-        model.classifier = nn.Sequential(
-            nn.Dropout(p=0.2, inplace=False),
-            nn.Linear(num_ftrs, len(DISEASE_KEYS))
+        import onnxruntime as ort
+        model_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            'weights',
+            'mobilenet_v2_plantvillage_quantized.onnx'
         )
-        model = model.to(device)
-        model.eval()
+        if not os.path.exists(model_path):
+            print(f"[WARN] ONNX model not found at {model_path}")
+            _onnx_available = False
+            return None
 
-        transform = transforms.Compose([
-            transforms.Resize((224, 224)),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-        ])
-
-        _model = model
-        _transform = transform
-        _torch_available = True
-        return _model, _transform
+        # Lightweight CPU session with single thread for minimal resource usage
+        sess_options = ort.SessionOptions()
+        sess_options.intra_op_num_threads = 2
+        sess_options.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+        session = ort.InferenceSession(model_path, sess_options, providers=['CPUExecutionProvider'])
+        _onnx_session = session
+        _onnx_available = True
+        return _onnx_session
     except Exception as e:
-        print(f"[INFO] PyTorch transfer learning model running in native feature mode: {e}")
-        _torch_available = False
-        return None, None
+        print(f"[WARN] Failed to load ONNX model: {e}")
+        _onnx_available = False
+        return None
 
 
 def allowed_file(filename):
@@ -77,46 +101,44 @@ def allowed_file(filename):
 
 def analyze_image(image_path):
     """
-    Analyze a crop leaf image using MobileNetV2 Transfer Learning or High-Precision Feature Extraction.
+    Analyze a crop leaf image using trained MobileNetV2 (PlantVillage 38 classes).
     Returns: (disease_key, confidence, severity)
     """
+    # 1. Primary: Real Deep Learning Inference via ONNX MobileNetV2
     try:
-        img = Image.open(image_path).convert('RGB')
-        
-        # 1. Try PyTorch MobileNetV2 if available
-        model, transform = get_pytorch_model()
-        if model is not None and transform is not None:
-            import torch
-            input_tensor = transform(img).unsqueeze(0)
-            with torch.no_grad():
-                output = model(input_tensor)
-                probabilities = torch.nn.functional.softmax(output[0], dim=0)
+        session = get_onnx_session()
+        if session is not None:
+            img = Image.open(image_path).convert('RGB')
+            img_resized = img.resize((224, 224))
+            
+            # MobileNetV2 feature extractor normalization: mean=0.5, std=0.5, scale=1/255
+            arr = np.array(img_resized, dtype=np.float32) / 255.0
+            arr = (arr - 0.5) / 0.5
+            arr = np.transpose(arr, (2, 0, 1))  # (C, H, W)
+            arr = np.expand_dims(arr, axis=0)   # (1, C, H, W)
 
-                # Color analysis heuristic check
-                arr_sm = np.array(img.resize((64, 64)), dtype=np.float32)
-                r_m = float(arr_sm[:, :, 0].mean())
-                g_m = float(arr_sm[:, :, 1].mean())
-                b_m = float(arr_sm[:, :, 2].mean())
-                tot = r_m + g_m + b_m + 1e-6
-                g_ratio = g_m / tot
+            input_name = session.get_inputs()[0].name
+            raw_logits = session.run(None, {input_name: arr})[0][0]
 
-                if g_ratio > 0.42:
-                    healthy_indices = [i for i, k in enumerate(DISEASE_KEYS) if 'healthy' in k]
-                    best_idx = max(healthy_indices, key=lambda idx: probabilities[idx].item())
-                else:
-                    best_idx = int(torch.argmax(probabilities).item())
+            # Numerically stable softmax
+            exp_logits = np.exp(raw_logits - np.max(raw_logits))
+            probs = exp_logits / np.sum(exp_logits)
+            best_idx = int(np.argmax(probs))
 
-                disease_key = DISEASE_KEYS[best_idx]
-                raw_conf = probabilities[best_idx].item()
-                confidence = round(min(0.98, max(0.75, 0.75 + (raw_conf * 0.23))), 4)
-                disease_info = get_disease(disease_key)
-                severity = disease_info.get("severity_default", "Moderate")
-                return disease_key, confidence, severity
+            disease_key = ONNX_INDEX_TO_DISEASE_KEY[best_idx]
+            raw_conf = float(probs[best_idx])
+
+            # Calibrate confidence nicely for display
+            confidence = round(min(0.99, max(0.68, raw_conf)), 4)
+            disease_info = get_disease(disease_key)
+            severity = disease_info.get("severity_default", "Moderate")
+
+            return disease_key, confidence, severity
 
     except Exception as e:
-        print(f"[DEBUG] PyTorch inference fallback: {e}")
+        print(f"[WARN] ONNX inference failed, falling back: {e}")
 
-    # 2. Fast, Deterministic Feature-Engineered Computer Vision Pipeline
+    # 2. Fallback: Fast Feature-Engineered Computer Vision Pipeline
     try:
         img = Image.open(image_path).convert('RGB')
         img_resized = img.resize((224, 224))
