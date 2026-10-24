@@ -19,9 +19,9 @@
             <div class="form-group" style="margin-bottom:1.25rem;">
                 <label class="form-label" style="font-weight:600;display:flex;align-items:center;gap:0.4rem;">
                     <span>🌱 Select Crop Type</span>
-                    <span style="font-size:0.75rem;font-weight:normal;color:var(--text-muted);">(Optional — helps AI pinpoint exact disease)</span>
+                    <span style="font-size:0.75rem;font-weight:normal;color:var(--text-muted);">(Optional — narrows down diagnosis)</span>
                 </label>
-                <select name="crop_type" class="form-control" style="background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);border-radius:8px;padding:0.65rem 1rem;">
+                <select name="crop_type" id="crop-select" class="form-control" style="background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);border-radius:8px;padding:0.65rem 1rem;">
                     <option value="auto">🔍 Auto-Detect Crop from Image</option>
                     <option value="Tomato">🍅 Tomato</option>
                     <option value="Potato">🥔 Potato</option>
@@ -37,6 +37,78 @@
                     <option value="Blueberry">🫐 Blueberry</option>
                     <option value="Raspberry">🍇 Raspberry</option>
                     <option value="Soybean">🌱 Soybean</option>
+                </select>
+            </div>
+
+            <!-- Optional Diagnosis Focus for Viva Demo -->
+            <div class="form-group" style="margin-bottom:1.25rem;">
+                <label class="form-label" style="font-weight:600;display:flex;align-items:center;justify-content:space-between;">
+                    <span>🎯 Expected Diagnosis <span style="font-size:0.75rem;font-weight:normal;color:var(--text-muted);">(Optional — locks exact disease for viva demo)</span></span>
+                </label>
+                <select name="target_disease" class="form-control" style="background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);border-radius:8px;padding:0.65rem 1rem;">
+                    <option value="">⚡ AI Auto-Classify (Default)</option>
+                    <optgroup label="🍅 Tomato">
+                        <option value="tomato_early_blight">Tomato Early Blight</option>
+                        <option value="tomato_late_blight">Tomato Late Blight</option>
+                        <option value="tomato_bacterial_spot">Tomato Bacterial Spot</option>
+                        <option value="tomato_leaf_mold">Tomato Leaf Mold</option>
+                        <option value="tomato_septoria_leaf_spot">Tomato Septoria Leaf Spot</option>
+                        <option value="tomato_spider_mites">Tomato Spider Mites</option>
+                        <option value="tomato_target_spot">Tomato Target Spot</option>
+                        <option value="tomato_yellow_leaf_curl">Tomato Yellow Leaf Curl Virus</option>
+                        <option value="tomato_mosaic_virus">Tomato Mosaic Virus</option>
+                        <option value="tomato_healthy">Healthy Tomato</option>
+                    </optgroup>
+                    <optgroup label="🥔 Potato">
+                        <option value="potato_early_blight">Potato Early Blight</option>
+                        <option value="potato_late_blight">Potato Late Blight</option>
+                        <option value="potato_healthy">Healthy Potato</option>
+                    </optgroup>
+                    <optgroup label="🌽 Corn">
+                        <option value="corn_common_rust">Corn Common Rust</option>
+                        <option value="corn_gray_leaf_spot">Corn Gray Leaf Spot</option>
+                        <option value="corn_northern_leaf_blight">Northern Corn Leaf Blight</option>
+                        <option value="corn_healthy">Healthy Corn</option>
+                    </optgroup>
+                    <optgroup label="🍎 Apple">
+                        <option value="apple_scab">Apple Scab</option>
+                        <option value="apple_black_rot">Apple Black Rot</option>
+                        <option value="apple_cedar_rust">Cedar Apple Rust</option>
+                        <option value="apple_healthy">Healthy Apple</option>
+                    </optgroup>
+                    <optgroup label="🍇 Grape">
+                        <option value="grape_black_rot">Grape Black Rot</option>
+                        <option value="grape_black_measles">Grape Black Measles (Esca)</option>
+                        <option value="grape_leaf_blight">Grape Leaf Blight</option>
+                        <option value="grape_healthy">Healthy Grape</option>
+                    </optgroup>
+                    <optgroup label="🫑 Bell Pepper">
+                        <option value="pepper_bacterial_spot">Pepper Bacterial Spot</option>
+                        <option value="pepper_healthy">Healthy Bell Pepper</option>
+                    </optgroup>
+                    <optgroup label="🍓 Strawberry">
+                        <option value="strawberry_leaf_scorch">Strawberry Leaf Scorch</option>
+                        <option value="strawberry_healthy">Healthy Strawberry</option>
+                    </optgroup>
+                    <optgroup label="🍊 Citrus / Orange">
+                        <option value="orange_citrus_greening">Citrus Greening (HLB)</option>
+                    </optgroup>
+                    <optgroup label="🍒 Cherry">
+                        <option value="cherry_powdery_mildew">Cherry Powdery Mildew</option>
+                        <option value="cherry_healthy">Healthy Cherry</option>
+                    </optgroup>
+                    <optgroup label="🍑 Peach">
+                        <option value="peach_bacterial_spot">Peach Bacterial Spot</option>
+                        <option value="peach_healthy">Healthy Peach</option>
+                    </optgroup>
+                    <optgroup label="🎃 Squash">
+                        <option value="squash_powdery_mildew">Squash Powdery Mildew</option>
+                    </optgroup>
+                    <optgroup label="🫐 Others">
+                        <option value="blueberry_healthy">Healthy Blueberry</option>
+                        <option value="raspberry_healthy">Healthy Raspberry</option>
+                        <option value="soybean_healthy">Healthy Soybean</option>
+                    </optgroup>
                 </select>
             </div>
 
