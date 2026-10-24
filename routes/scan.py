@@ -35,8 +35,11 @@ def scan_crop():
             filepath = os.path.join(UPLOAD_FOLDER, unique_filename)
             file.save(filepath)
             
-            # Analyze image
-            disease_key, confidence, severity = analyze_image(filepath)
+            # Read optional crop hint from user
+            crop_hint = request.form.get('crop_type', '').strip()
+
+            # Analyze image with crop hint
+            disease_key, confidence, severity = analyze_image(filepath, crop_hint=crop_hint)
             disease_info = get_disease(disease_key)
             
             # Save to database

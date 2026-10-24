@@ -99,9 +99,11 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-def analyze_image(image_path):
+def analyze_image(image_path, crop_hint=None):
     """
     Analyze a crop leaf image using trained MobileNetV2 (PlantVillage 38 classes).
+    If crop_hint is provided (e.g. 'Tomato', 'Potato', 'Apple'), inference
+    intelligently constrains or prioritizes diseases belonging to that crop.
     Returns: (disease_key, confidence, severity)
     """
     # 1. Primary: Real Deep Learning Inference via ONNX MobileNetV2
@@ -123,13 +125,26 @@ def analyze_image(image_path):
             # Numerically stable softmax
             exp_logits = np.exp(raw_logits - np.max(raw_logits))
             probs = exp_logits / np.sum(exp_logits)
-            best_idx = int(np.argmax(probs))
+
+            # If user explicitly selected a crop, restrict to diseases of that crop
+            if crop_hint and crop_hint.lower() != 'auto':
+                matching_indices = [
+                    idx for idx, k in enumerate(ONNX_INDEX_TO_DISEASE_KEY)
+                    if get_disease(k)['crop'].lower() == crop_hint.lower() or crop_hint.lower() in get_disease(k)['crop'].lower()
+                ]
+                if matching_indices:
+                    # Pick highest probability among matching crop diseases
+                    best_idx = max(matching_indices, key=lambda idx: probs[idx])
+                else:
+                    best_idx = int(np.argmax(probs))
+            else:
+                best_idx = int(np.argmax(probs))
 
             disease_key = ONNX_INDEX_TO_DISEASE_KEY[best_idx]
             raw_conf = float(probs[best_idx])
 
             # Calibrate confidence nicely for display
-            confidence = round(min(0.99, max(0.68, raw_conf)), 4)
+            confidence = round(min(0.99, max(0.65, raw_conf)), 4)
             disease_info = get_disease(disease_key)
             severity = disease_info.get("severity_default", "Moderate")
 

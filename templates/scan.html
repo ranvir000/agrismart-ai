@@ -16,6 +16,30 @@
             <h2 class="card-title">Upload Leaf Image</h2>
         </div>
         <form method="POST" action="{{ url_for('scan.scan_crop') }}" enctype="multipart/form-data" id="scan-form">
+            <div class="form-group" style="margin-bottom:1.25rem;">
+                <label class="form-label" style="font-weight:600;display:flex;align-items:center;gap:0.4rem;">
+                    <span>🌱 Select Crop Type</span>
+                    <span style="font-size:0.75rem;font-weight:normal;color:var(--text-muted);">(Optional — helps AI pinpoint exact disease)</span>
+                </label>
+                <select name="crop_type" class="form-control" style="background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);border-radius:8px;padding:0.65rem 1rem;">
+                    <option value="auto">🔍 Auto-Detect Crop from Image</option>
+                    <option value="Tomato">🍅 Tomato</option>
+                    <option value="Potato">🥔 Potato</option>
+                    <option value="Corn (Maize)">🌽 Corn (Maize)</option>
+                    <option value="Apple">🍎 Apple</option>
+                    <option value="Grape">🍇 Grape</option>
+                    <option value="Bell Pepper">🫑 Bell Pepper</option>
+                    <option value="Cherry">🍒 Cherry</option>
+                    <option value="Peach">🍑 Peach</option>
+                    <option value="Strawberry">🍓 Strawberry</option>
+                    <option value="Orange / Citrus">🍊 Orange / Citrus</option>
+                    <option value="Squash">🎃 Squash</option>
+                    <option value="Blueberry">🫐 Blueberry</option>
+                    <option value="Raspberry">🍇 Raspberry</option>
+                    <option value="Soybean">🌱 Soybean</option>
+                </select>
+            </div>
+
             <div class="upload-zone" id="drop-zone">
                 <input type="file" name="file" id="file-input" accept="image/*" required>
                 <div class="upload-zone-icon"><i class="fas fa-cloud-upload-alt"></i></div>
