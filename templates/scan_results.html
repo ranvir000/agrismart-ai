@@ -42,7 +42,7 @@
             </div>
         </div>
     </div>
-    <img src="{{ url_for('static', filename='uploads/' + scan.image_filename) }}"
+    <img src="{{ url_for('scan.scan_image', scan_id=scan.id) }}"
          style="width:120px;height:120px;border-radius:12px;object-fit:cover;border:1px solid var(--border);"
          onerror="this.style.display='none'"
          alt="Scanned leaf">

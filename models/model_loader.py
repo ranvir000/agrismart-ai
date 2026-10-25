@@ -101,55 +101,15 @@ def allowed_file(filename):
 
 def analyze_image(image_path, original_filename=None):
     """
-    Analyze a crop leaf image using smart multi-layer AI pipeline:
-    1. Automatic filename semantic matching: When downloading internet leaf photos,
-       they almost always have the crop/disease in their name (e.g. 'tomato_early_blight.jpg').
-       The model auto-identifies this instantly with 95%+ confidence without any user intervention.
-    2. Real Deep Neural Network (MobileNetV2 PlantVillage 38 classes) via ONNX Runtime.
-    3. Computer Vision feature extraction fallback.
+    Analyze a crop leaf image with the trained MobileNetV2 PlantVillage model.
+    1. MobileNetV2 PlantVillage (38 classes) inference via ONNX Runtime.
+    2. Rough pixel-heuristic fallback when the trained model is unavailable.
+
+    The filename is ignored: predictions come only from the image pixels, and the
+    returned confidence is the model's own probability for that class.
     Returns: (disease_key, confidence, severity)
     """
-    # 1. Automatic Smart Filename Semantic Clue
-    if original_filename:
-        clean_fn = original_filename.lower().replace('-', '_').replace(' ', '_').replace('.', '_')
-        # Check direct key match
-        for key in DISEASE_KEYS:
-            if key in clean_fn:
-                disease_info = get_disease(key)
-                import hashlib
-                h = int(hashlib.md5(image_path.encode()).hexdigest(), 16)
-                confidence = round(0.92 + (h % 65) / 1000.0, 4)
-                severity = disease_info.get("severity_default", "Moderate")
-                return key, confidence, severity
-
-        # Check disease-specific keywords with crop
-        crops = {
-            'tomato': ['early_blight', 'late_blight', 'bacterial_spot', 'leaf_mold', 'septoria', 'spider_mite', 'yellow_leaf_curl', 'mosaic', 'healthy'],
-            'potato': ['early_blight', 'late_blight', 'healthy'],
-            'apple': ['scab', 'black_rot', 'cedar_rust', 'rust', 'healthy'],
-            'corn': ['common_rust', 'rust', 'gray_leaf', 'northern', 'blight', 'healthy'],
-            'grape': ['black_rot', 'measles', 'esca', 'leaf_blight', 'healthy'],
-            'pepper': ['bacterial_spot', 'healthy'],
-            'strawberry': ['scorch', 'leaf_scorch', 'healthy'],
-            'cherry': ['powdery_mildew', 'mildew', 'healthy'],
-            'peach': ['bacterial_spot', 'healthy'],
-            'orange': ['citrus_greening', 'greening', 'hlb'],
-            'squash': ['powdery_mildew', 'mildew']
-        }
-        for crop, diseases in crops.items():
-            if crop in clean_fn:
-                for d in diseases:
-                    if d in clean_fn:
-                        for k in DISEASE_KEYS:
-                            if crop in k and d in k:
-                                disease_info = get_disease(k)
-                                import hashlib
-                                h = int(hashlib.md5(image_path.encode()).hexdigest(), 16)
-                                confidence = round(0.93 + (h % 55) / 1000.0, 4)
-                                severity = disease_info.get("severity_default", "Moderate")
-                                return k, confidence, severity
-
-    # 2. Real Deep Learning Inference via ONNX MobileNetV2
+    # 1. Real inference with the trained MobileNetV2 model
     try:
         session = get_onnx_session()
         if session is not None:
@@ -173,7 +133,7 @@ def analyze_image(image_path, original_filename=None):
             disease_key = ONNX_INDEX_TO_DISEASE_KEY[best_idx]
             raw_conf = float(probs[best_idx])
 
-            confidence = round(min(0.99, max(0.72, raw_conf)), 4)
+            confidence = round(float(raw_conf), 4)  # real probability, never padded
             disease_info = get_disease(disease_key)
             severity = disease_info.get("severity_default", "Moderate")
 
@@ -182,7 +142,7 @@ def analyze_image(image_path, original_filename=None):
     except Exception as e:
         print(f"[WARN] ONNX inference failed, falling back: {e}")
 
-    # 2. Fallback: Fast Feature-Engineered Computer Vision Pipeline
+    # 2. Fallback (no trained model): rough pixel-heuristic guess
     try:
         img = Image.open(image_path).convert('RGB')
         img_resized = img.resize((224, 224))
@@ -262,12 +222,13 @@ def analyze_image(image_path, original_filename=None):
             disease_info = get_disease(disease_key)
             severity = disease_info.get("severity_default", "Moderate")
 
-        confidence = round(max(0.60, min(0.97, confidence)), 4)
+        # A heuristic is not a diagnosis: keep confidence visibly low.
+        confidence = round(max(0.20, min(0.40, confidence)), 4)
         return disease_key, confidence, severity
 
     except Exception as e:
         print(f"[ERROR] Image analysis failed: {e}")
-        return "tomato_healthy", 0.72, "Healthy"
+        return "tomato_healthy", 0.0, "Healthy"
 
 
 def get_weather(city="New Delhi"):

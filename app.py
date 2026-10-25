@@ -19,7 +19,18 @@ def create_app(test_config=None):
     
     if test_config is None:
         app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-agrismart-secret-key')
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///agrismart.db'
+
+        # A persistent Postgres database is used when DATABASE_URL is set (Render),
+        # otherwise we fall back to a local SQLite file.
+        database_url = os.environ.get('DATABASE_URL', '').strip()
+        if database_url.startswith('postgres://'):
+            database_url = database_url.replace('postgres://', 'postgresql://', 1)
+        app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///agrismart.db'
+        if database_url:
+            app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+                'pool_pre_ping': True,
+                'pool_recycle': 280,
+            }
     else:
         app.config.update(test_config)
         
@@ -78,11 +89,14 @@ def create_app(test_config=None):
 
 
 def seed_admin():
-    if not User.query.filter_by(email='admin@agrismart.com').first():
+    admin_email = os.environ.get('ADMIN_EMAIL', 'admin@agrismart.com')
+    admin_password = os.environ.get('ADMIN_PASSWORD', 'admin123')
+    admin_username = os.environ.get('ADMIN_USERNAME', 'admin')
+    if not User.query.filter_by(email=admin_email).first():
         admin = User(
-            username='admin',
-            email='admin@agrismart.com',
-            password_hash=generate_password_hash('admin123'),
+            username=admin_username,
+            email=admin_email,
+            password_hash=generate_password_hash(admin_password),
             role='admin',
             city='Delhi',
             farm_name='AgriSmart HQ'
