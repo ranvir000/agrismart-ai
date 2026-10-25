@@ -14,6 +14,33 @@ from routes.admin import admin_bp
 from werkzeug.security import generate_password_hash
 from datetime import datetime
 
+def ensure_schema():
+    """Add columns introduced after a database was first created.
+
+    db.create_all() only creates missing tables, so an existing scan table would
+    otherwise reject the newer fields used by the scan route.
+    """
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(db.engine)
+    if 'scan' not in inspector.get_table_names():
+        return
+
+    existing = {column['name'] for column in inspector.get_columns('scan')}
+    blob_type = 'BLOB' if db.engine.dialect.name == 'sqlite' else 'BYTEA'
+    additions = {
+        'image_data': blob_type,
+        'image_mimetype': 'VARCHAR(50)',
+        'alternatives': 'TEXT',
+        'analysis_source': 'VARCHAR(20)',
+    }
+
+    with db.engine.begin() as connection:
+        for name, column_type in additions.items():
+            if name not in existing:
+                connection.execute(text(f'ALTER TABLE scan ADD COLUMN {name} {column_type}'))
+
+
 def create_app(test_config=None):
     app = Flask(__name__)
     
@@ -83,6 +110,7 @@ def create_app(test_config=None):
 
     with app.app_context():
         db.create_all()
+        ensure_schema()
         seed_admin()
 
     return app
