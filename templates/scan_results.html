@@ -40,6 +40,27 @@
             <div class="confidence-track">
                 <div class="confidence-fill" id="conf-bar" style="width:0%;"></div>
             </div>
+            {% if scan.confidence < 0.5 %}
+            <div style="margin-top:.75rem;padding:.6rem .8rem;border-radius:8px;background:rgba(243,156,18,.12);border:1px solid rgba(243,156,18,.45);font-size:.78rem;">
+                <i class="fas fa-triangle-exclamation" style="color:#f39c12;"></i>
+                Low confidence — this photo is hard to read. Treat the result as a hint and confirm with your local agri-extension officer.
+            </div>
+            {% endif %}
+            {% if alternatives %}
+            <div style="margin-top:.55rem;font-size:.76rem;color:var(--text-muted);">
+                Other possibilities:
+                {% for alt in alternatives %}
+                <span class="badge" style="background:rgba(255,255,255,.07);margin:0 .3rem .2rem 0;">{{ alt['name'] }} · {{ (alt['confidence'] * 100) | round(1) }}%</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+            <div style="margin-top:.45rem;font-size:.72rem;color:var(--text-muted);">
+                {% if scan.analysis_source == 'vision' %}
+                Analysed with an AI vision model
+                {% else %}
+                Analysed with the on-device PlantVillage model
+                {% endif %}
+            </div>
         </div>
     </div>
     <img src="{{ url_for('scan.scan_image', scan_id=scan.id) }}"

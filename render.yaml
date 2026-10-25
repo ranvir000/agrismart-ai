@@ -23,6 +23,8 @@ services:
           property: connectionString
       - key: WEATHER_API_KEY
         sync: false
+      - key: GEMINI_API_KEY
+        sync: false
       - key: ADMIN_EMAIL
         value: admin@agrismart.com
       - key: ADMIN_PASSWORD

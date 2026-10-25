@@ -99,136 +99,60 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-def analyze_image(image_path, original_filename=None):
+def analyze_image(image_path):
     """
-    Analyze a crop leaf image with the trained MobileNetV2 PlantVillage model.
-    1. MobileNetV2 PlantVillage (38 classes) inference via ONNX Runtime.
-    2. Rough pixel-heuristic fallback when the trained model is unavailable.
+    Run the on-device MobileNetV2 (PlantVillage, 38 classes) model.
 
-    The filename is ignored: predictions come only from the image pixels, and the
-    returned confidence is the model's own probability for that class.
-    Returns: (disease_key, confidence, severity)
+    Returns a dict describing the top-3 classes with the model's real softmax
+    probabilities. It never invents an answer: if the model cannot produce a
+    prediction, {"ok": False} is returned and the caller tells the user instead
+    of showing a made-up disease.
     """
-    # 1. Real inference with the trained MobileNetV2 model
+    session = get_onnx_session()
+    if session is None:
+        return {"ok": False, "error": "on-device model unavailable"}
+
     try:
-        session = get_onnx_session()
-        if session is not None:
-            img = Image.open(image_path).convert('RGB')
-            img_resized = img.resize((224, 224))
-            
-            # MobileNetV2 normalization: mean=0.5, std=0.5, scale=1/255
-            arr = np.array(img_resized, dtype=np.float32) / 255.0
-            arr = (arr - 0.5) / 0.5
-            arr = np.transpose(arr, (2, 0, 1))  # (C, H, W)
-            arr = np.expand_dims(arr, axis=0)   # (1, C, H, W)
+        img = Image.open(image_path).convert('RGB').resize((224, 224))
 
-            input_name = session.get_inputs()[0].name
-            raw_logits = session.run(None, {input_name: arr})[0][0]
+        # These are the torchvision ImageNet statistics the model was trained with
+        # (see train/train.py). Feeding a different normalisation silently wrecks accuracy.
+        arr = np.array(img, dtype=np.float32) / 255.0
+        arr = (arr - np.array([0.485, 0.456, 0.406], dtype=np.float32)) / np.array(
+            [0.229, 0.224, 0.225], dtype=np.float32
+        )
+        arr = np.expand_dims(np.transpose(arr, (2, 0, 1)), axis=0)
 
-            # Numerically stable softmax
-            exp_logits = np.exp(raw_logits - np.max(raw_logits))
-            probs = exp_logits / np.sum(exp_logits)
-            best_idx = int(np.argmax(probs))
+        input_name = session.get_inputs()[0].name
+        logits = session.run(None, {input_name: arr})[0][0]
 
-            disease_key = ONNX_INDEX_TO_DISEASE_KEY[best_idx]
-            raw_conf = float(probs[best_idx])
+        exp_logits = np.exp(logits - np.max(logits))
+        probs = exp_logits / np.sum(exp_logits)
 
-            confidence = round(float(raw_conf), 4)  # real probability, never padded
-            disease_info = get_disease(disease_key)
-            severity = disease_info.get("severity_default", "Moderate")
+        ranked = np.argsort(probs)[::-1][:3]
+        top = []
+        for idx in ranked:
+            key = ONNX_INDEX_TO_DISEASE_KEY[int(idx)]
+            top.append({
+                "key": key,
+                "name": get_disease(key)["name"],
+                "confidence": round(float(probs[int(idx)]), 4),
+            })
 
-            return disease_key, confidence, severity
-
-    except Exception as e:
-        print(f"[WARN] ONNX inference failed, falling back: {e}")
-
-    # 2. Fallback (no trained model): rough pixel-heuristic guess
-    try:
-        img = Image.open(image_path).convert('RGB')
-        img_resized = img.resize((224, 224))
-        arr = np.array(img_resized, dtype=np.float32)
-
-        r = arr[:, :, 0]
-        g = arr[:, :, 1]
-        b = arr[:, :, 2]
-
-        r_mean = float(r.mean())
-        g_mean = float(g.mean())
-        b_mean = float(b.mean())
-        total = r_mean + g_mean + b_mean + 1e-6
-
-        green_ratio = g_mean / total
-        red_ratio = r_mean / total
-        blue_ratio = b_mean / total
-
-        brown_score = (r_mean - g_mean) / (r_mean + g_mean + 1e-6)
-        yellow_score = (r_mean + g_mean - 2 * b_mean) / (r_mean + g_mean + b_mean + 1e-6)
-        darkness_score = 1.0 - (total / (3 * 255))
-        variance = float(arr.var())
-
-        img_hash = int(abs(hash(arr.tobytes()[:500])))
-
-        if green_ratio > 0.40 and brown_score < 0.05 and variance < 1800:
-            healthy_crops = [k for k in DISEASE_KEYS if k.endswith('_healthy')]
-            disease_key = healthy_crops[img_hash % len(healthy_crops)]
-            confidence = min(0.97, 0.82 + (green_ratio - 0.40) * 0.8)
-            severity = "Healthy"
-        elif blue_ratio > 0.34 and g_mean > 150 and r_mean > 150:
-            mildew_diseases = ["cherry_powdery_mildew", "squash_powdery_mildew"]
-            disease_key = mildew_diseases[img_hash % 2]
-            confidence = min(0.94, 0.72 + blue_ratio * 0.5)
-            severity = "Moderate"
-        elif yellow_score > 0.15 and green_ratio < 0.40:
-            yellow_diseases = ["tomato_yellow_leaf_curl", "tomato_mosaic_virus", "orange_citrus_greening"]
-            disease_key = yellow_diseases[img_hash % 3]
-            confidence = min(0.92, 0.70 + yellow_score * 0.5)
-            severity = "Severe" if yellow_score > 0.25 else "Moderate"
-        elif brown_score > 0.08 and variance > 1500:
-            brown_diseases = [
-                "tomato_early_blight", "potato_early_blight", "corn_common_rust",
-                "apple_cedar_rust", "strawberry_leaf_scorch", "peach_bacterial_spot",
-                "corn_gray_leaf_spot", "apple_scab"
-            ]
-            disease_key = brown_diseases[img_hash % len(brown_diseases)]
-            confidence = min(0.93, 0.73 + brown_score * 0.5)
-            severity = "Severe" if brown_score > 0.20 else "Moderate"
-        elif darkness_score > 0.45 and variance > 2000:
-            blight_diseases = [
-                "tomato_late_blight", "potato_late_blight", "apple_black_rot",
-                "grape_black_rot", "corn_northern_leaf_blight"
-            ]
-            disease_key = blight_diseases[img_hash % len(blight_diseases)]
-            confidence = min(0.91, 0.74 + darkness_score * 0.3)
-            severity = "Severe"
-        elif variance > 2500 and brown_score > 0.03:
-            spot_diseases = [
-                "tomato_bacterial_spot", "pepper_bacterial_spot", "tomato_septoria_leaf_spot",
-                "tomato_target_spot", "grape_leaf_blight", "tomato_leaf_mold"
-            ]
-            disease_key = spot_diseases[img_hash % len(spot_diseases)]
-            confidence = min(0.90, 0.68 + (variance / 10000))
-            severity = "Moderate"
-        elif green_ratio < 0.38 and variance < 1500:
-            minor_diseases = [
-                "tomato_spider_mites", "cherry_powdery_mildew",
-                "apple_scab", "tomato_leaf_mold"
-            ]
-            disease_key = minor_diseases[img_hash % len(minor_diseases)]
-            confidence = min(0.85, 0.64 + (0.38 - green_ratio) * 1.0)
-            severity = "Mild"
-        else:
-            disease_key = DISEASE_KEYS[img_hash % len(DISEASE_KEYS)]
-            confidence = min(0.88, 0.62 + (variance / 20000))
-            disease_info = get_disease(disease_key)
-            severity = disease_info.get("severity_default", "Moderate")
-
-        # A heuristic is not a diagnosis: keep confidence visibly low.
-        confidence = round(max(0.20, min(0.40, confidence)), 4)
-        return disease_key, confidence, severity
-
-    except Exception as e:
-        print(f"[ERROR] Image analysis failed: {e}")
-        return "tomato_healthy", 0.0, "Healthy"
+        best = top[0]
+        disease_info = get_disease(best["key"])
+        return {
+            "ok": True,
+            "disease_key": best["key"],
+            "confidence": best["confidence"],
+            "severity": disease_info.get("severity_default", "Moderate"),
+            "alternatives": top[1:],
+            "source": "on-device",
+            "note": "",
+        }
+    except Exception as exc:
+        print(f"[ERROR] On-device inference failed: {exc}")
+        return {"ok": False, "error": str(exc)}
 
 
 def get_weather(city="New Delhi"):
