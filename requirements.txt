@@ -8,4 +8,4 @@ requests>=2.31.0
 fpdf2>=2.7.0
 gunicorn==21.2.0
 onnxruntime>=1.17.0
-psycopg2-binary==2.9.9
+psycopg[binary]>=3.2,<4
