@@ -58,7 +58,7 @@
                 {% for scan in scans.items %}
                 <tr>
                     <td>
-                        <img src="{{ url_for('static', filename='uploads/' + scan.image_filename) }}"
+                        <img src="{{ url_for('scan.scan_image', scan_id=scan.id) }}"
                              style="width:40px;height:40px;border-radius:6px;object-fit:cover;border:1px solid var(--border);"
                              onerror="this.src='data:image/svg+xml,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 40 40\'><rect fill=\'%23172d1e\' width=\'40\' height=\'40\'/><text x=\'50%25\' y=\'55%25\' dominant-baseline=\'middle\' text-anchor=\'middle\' font-size=\'20\'>🌿</text></svg>'"
                              alt="">

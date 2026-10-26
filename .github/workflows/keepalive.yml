@@ -1,0 +1,17 @@
+name: Keep the app awake
+
+# Render's free tier spins the service down after ~15 minutes without traffic,
+# which is what caused the slow "waking up" first load.
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping AgriSmart AI
+        run: |
+          curl -s -o /dev/null -w "status=%{http_code} time=%{time_total}s\n" \
+            --max-time 90 https://agrismart-ai-8z4f.onrender.com/

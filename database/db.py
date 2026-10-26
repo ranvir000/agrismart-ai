@@ -35,6 +35,13 @@ class Scan(db.Model):
     disease_name = db.Column(db.String(200), nullable=False)
     confidence = db.Column(db.Float, nullable=False)
     severity = db.Column(db.String(20), nullable=False)  # 'Healthy', 'Mild', 'Moderate', 'Severe'
+    # Image bytes live in the database so photos survive restarts and redeploys
+    # (Render's free web services use an ephemeral filesystem).
+    image_data = db.Column(db.LargeBinary, nullable=True)
+    image_mimetype = db.Column(db.String(50), nullable=True)
+    # Runners-up plus which engine produced the diagnosis, so results stay transparent
+    alternatives = db.Column(db.Text, nullable=True)
+    analysis_source = db.Column(db.String(20), nullable=True)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     notes = db.Column(db.Text, nullable=True)
 

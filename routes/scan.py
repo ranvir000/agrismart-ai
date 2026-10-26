@@ -1,9 +1,12 @@
+import json
 import os
 from werkzeug.utils import secure_filename
-from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app, abort
+import mimetypes
+from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app, abort, Response, send_from_directory
 from flask_login import login_required, current_user
 from database.db import db, Scan
 from models.model_loader import analyze_image, allowed_file, UPLOAD_FOLDER
+from models.vision_analyzer import analyze_with_vision
 from models.disease_info import get_disease
 
 scan_bp = Blueprint('scan', __name__)
@@ -34,11 +37,22 @@ def scan_crop():
             os.makedirs(UPLOAD_FOLDER, exist_ok=True)
             filepath = os.path.join(UPLOAD_FOLDER, unique_filename)
             file.save(filepath)
+
+            # Keep a copy in the database so the photo survives a restart
+            with open(filepath, 'rb') as image_file:
+                image_bytes = image_file.read()
+            image_mimetype = mimetypes.guess_type(filename)[0] or 'image/jpeg'
             
-            # Analyze image using deep learning model & metadata
-            disease_key, confidence, severity = analyze_image(
-                filepath, original_filename=filename
-            )
+            # Vision model when configured, on-device model otherwise. Never guess:
+            # with no usable result the user is asked for a better photo.
+            result = analyze_with_vision(filepath) or analyze_image(filepath)
+            if not result or not result.get('ok'):
+                flash('We could not analyse that photo. Please try a clearer, closer shot of the affected leaf.', 'warning')
+                return redirect(url_for('scan.scan_crop'))
+
+            disease_key = result['disease_key']
+            confidence = result['confidence']
+            severity = result['severity']
             disease_info = get_disease(disease_key)
             
             # Save to database
@@ -49,7 +63,11 @@ def scan_crop():
                 disease_key=disease_key,
                 disease_name=disease_info['name'],
                 confidence=confidence,
-                severity=severity
+                severity=severity,
+                image_data=image_bytes,
+                image_mimetype=image_mimetype,
+                alternatives=json.dumps(result.get('alternatives', [])),
+                analysis_source=result.get('source', 'on-device')
             )
             db.session.add(scan)
             db.session.commit()
@@ -62,6 +80,20 @@ def scan_crop():
 
     return render_template('scan.html')
 
+@scan_bp.route('/scan/image/<int:scan_id>')
+@login_required
+def scan_image(scan_id):
+    scan = Scan.query.get_or_404(scan_id)
+    if scan.user_id != current_user.id and not current_user.is_admin:
+        abort(403)
+
+    if scan.image_data:
+        return Response(scan.image_data, mimetype=scan.image_mimetype or 'image/jpeg')
+
+    # Scans saved before images were kept in the database
+    return send_from_directory(UPLOAD_FOLDER, scan.image_filename)
+
+
 @scan_bp.route('/scan/results/<int:scan_id>')
 @login_required
 def scan_results(scan_id):
@@ -70,7 +102,11 @@ def scan_results(scan_id):
         abort(403)
         
     disease_info = get_disease(scan.disease_key)
-    return render_template('scan_results.html', scan=scan, disease_info=disease_info)
+    try:
+        alternatives = json.loads(scan.alternatives) if scan.alternatives else []
+    except ValueError:
+        alternatives = []
+    return render_template('scan_results.html', scan=scan, disease_info=disease_info, alternatives=alternatives)
 
 @scan_bp.route('/scan/download-pdf/<int:scan_id>')
 @login_required

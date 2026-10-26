@@ -1,3 +1,9 @@
+databases:
+  - name: agrismart-db
+    plan: free
+    databaseName: agrismart
+    user: agrismart
+
 services:
   - type: web
     name: agrismart-ai
@@ -11,5 +17,15 @@ services:
         value: production
       - key: PYTHON_VERSION
         value: "3.11.9"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: agrismart-db
+          property: connectionString
       - key: WEATHER_API_KEY
-        value: c0c2781bf07985e92c3938bc59fcec6c
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: ADMIN_EMAIL
+        value: admin@agrismart.com
+      - key: ADMIN_PASSWORD
+        sync: false

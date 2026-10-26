@@ -14,12 +14,50 @@ from routes.admin import admin_bp
 from werkzeug.security import generate_password_hash
 from datetime import datetime
 
+def ensure_schema():
+    """Add columns introduced after a database was first created.
+
+    db.create_all() only creates missing tables, so an existing scan table would
+    otherwise reject the newer fields used by the scan route.
+    """
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(db.engine)
+    if 'scan' not in inspector.get_table_names():
+        return
+
+    existing = {column['name'] for column in inspector.get_columns('scan')}
+    blob_type = 'BLOB' if db.engine.dialect.name == 'sqlite' else 'BYTEA'
+    additions = {
+        'image_data': blob_type,
+        'image_mimetype': 'VARCHAR(50)',
+        'alternatives': 'TEXT',
+        'analysis_source': 'VARCHAR(20)',
+    }
+
+    with db.engine.begin() as connection:
+        for name, column_type in additions.items():
+            if name not in existing:
+                connection.execute(text(f'ALTER TABLE scan ADD COLUMN {name} {column_type}'))
+
+
 def create_app(test_config=None):
     app = Flask(__name__)
     
     if test_config is None:
         app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-agrismart-secret-key')
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///agrismart.db'
+
+        # A persistent Postgres database is used when DATABASE_URL is set (Render),
+        # otherwise we fall back to a local SQLite file.
+        database_url = os.environ.get('DATABASE_URL', '').strip()
+        if database_url.startswith('postgres://'):
+            database_url = database_url.replace('postgres://', 'postgresql://', 1)
+        app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///agrismart.db'
+        if database_url:
+            app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+                'pool_pre_ping': True,
+                'pool_recycle': 280,
+            }
     else:
         app.config.update(test_config)
         
@@ -72,17 +110,21 @@ def create_app(test_config=None):
 
     with app.app_context():
         db.create_all()
+        ensure_schema()
         seed_admin()
 
     return app
 
 
 def seed_admin():
-    if not User.query.filter_by(email='admin@agrismart.com').first():
+    admin_email = os.environ.get('ADMIN_EMAIL', 'admin@agrismart.com')
+    admin_password = os.environ.get('ADMIN_PASSWORD', 'admin123')
+    admin_username = os.environ.get('ADMIN_USERNAME', 'admin')
+    if not User.query.filter_by(email=admin_email).first():
         admin = User(
-            username='admin',
-            email='admin@agrismart.com',
-            password_hash=generate_password_hash('admin123'),
+            username=admin_username,
+            email=admin_email,
+            password_hash=generate_password_hash(admin_password),
             role='admin',
             city='Delhi',
             farm_name='AgriSmart HQ'
