@@ -54,13 +54,19 @@
                 {% endfor %}
             </div>
             {% endif %}
+            {% if scan.analysis_source == 'vision' %}
             <div style="margin-top:.45rem;font-size:.72rem;color:var(--text-muted);">
-                {% if scan.analysis_source == 'vision' %}
                 Analysed with an AI vision model
-                {% else %}
-                Analysed with the on-device PlantVillage model
-                {% endif %}
             </div>
+            {% else %}
+            <div style="margin-top:.75rem;padding:.6rem .8rem;border-radius:8px;background:rgba(230,126,34,.12);border:1px solid rgba(230,126,34,.45);font-size:.78rem;">
+                <i class="fas fa-circle-exclamation" style="color:#e67e22;"></i>
+                <strong>Analysed with the offline backup model.</strong>
+                It was trained on clean laboratory photos and can misread real-world photos
+                (for example calling every leaf &ldquo;Pepper Bacterial Spot&rdquo;).
+                Add a <strong>GEMINI_API_KEY</strong> in the Render dashboard for accurate AI vision analysis.
+            </div>
+            {% endif %}
         </div>
     </div>
     <img src="{{ url_for('scan.scan_image', scan_id=scan.id) }}"
