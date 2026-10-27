@@ -75,8 +75,14 @@ def analyze_with_vision(image_path):
             },
         }
 
+        # Send the key as a header (x-goog-api-key). New-format Google keys
+        # (starting with "AQ.") are REJECTED when passed as a ?key= query param,
+        # which made every scan silently fall back to the offline model.
         response = requests.post(
-            API_URL.format(model=model), params={"key": key}, json=payload, timeout=60
+            API_URL.format(model=model),
+            json=payload,
+            headers={"x-goog-api-key": key},
+            timeout=60,
         )
         if response.status_code != 200:
             print(f"[WARN] Vision analysis HTTP {response.status_code}: {response.text[:200]}")
