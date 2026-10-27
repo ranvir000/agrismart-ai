@@ -6,7 +6,7 @@ from flask import Blueprint, render_template, request, flash, redirect, url_for,
 from flask_login import login_required, current_user
 from database.db import db, Scan
 from models.model_loader import analyze_image, allowed_file, UPLOAD_FOLDER
-from models.vision_analyzer import analyze_with_vision
+from models.vision_analyzer import analyze_with_vision, is_available, last_error
 from models.disease_info import get_disease
 
 scan_bp = Blueprint('scan', __name__)
@@ -45,7 +45,15 @@ def scan_crop():
             
             # Vision model when configured, on-device model otherwise. Never guess:
             # with no usable result the user is asked for a better photo.
-            result = analyze_with_vision(filepath) or analyze_image(filepath)
+            result = analyze_with_vision(filepath)
+            if result is None and is_available():
+                # Key is set but the cloud call failed: say WHY instead of silently
+                # showing a weak offline answer.
+                flash(f"Cloud AI analysis failed: {last_error() or 'unknown error'}. "
+                      f"Showing the offline model's result instead.", "warning")
+                result = analyze_image(filepath)
+            else:
+                result = result or analyze_image(filepath)
             if not result or not result.get('ok'):
                 flash('We could not analyse that photo. Please try a clearer, closer shot of the affected leaf.', 'warning')
                 return redirect(url_for('scan.scan_crop'))
