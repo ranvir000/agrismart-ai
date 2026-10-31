@@ -1,0 +1,83 @@
+{% extends "app_base.html" %}
+{% block title %}Could Not Identify — AgriSmart AI{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">🤔 Outside My Scope</h1>
+        <p class="page-subtitle">The model was not confident enough to name a disease for this photo</p>
+    </div>
+</div>
+
+<div class="grid-2" style="align-items:start;">
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">Your Photo</h2>
+        </div>
+        <img src="{{ preview }}" alt="Uploaded leaf"
+             style="width:100%;border-radius:10px;border:1px solid var(--border);display:block;">
+        <div style="margin-top:1rem;display:flex;gap:.6rem;flex-wrap:wrap;">
+            <a href="{{ url_for('scan.scan_crop') }}" class="btn btn-primary">
+                <i class="fas fa-camera"></i> Try Another Photo
+            </a>
+            <a href="{{ url_for('diseases.diseases_list') }}" class="btn btn-outline">
+                <i class="fas fa-book-medical"></i> Disease Library
+            </a>
+        </div>
+    </div>
+
+    <div>
+        <div class="card" style="border-color:rgba(244,165,53,0.35);background:rgba(244,165,53,0.06);">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-triangle-exclamation" style="color:var(--accent);margin-right:.4rem;"></i>
+                    Why there is no answer
+                </h2>
+            </div>
+            <p style="font-size:.9rem;color:var(--text-muted);line-height:1.65;">
+                This system detects <strong>38 diseases across 14 crops</strong> — apple, blueberry, cherry, corn,
+                grape, orange, peach, pepper, potato, raspberry, soybean, squash, strawberry and tomato.
+                When a photo does not look like one of those crops, the honest answer is
+                <strong>“outside my scope”</strong> instead of a wrong disease name.
+            </p>
+            <p style="font-size:.9rem;color:var(--text-muted);line-height:1.65;margin-top:.75rem;">
+                The best guess scored below the <strong>{{ '%.0f'|format(threshold * 100) }}%</strong>
+                confidence threshold{{ ' (answered by the ' ~ source ~ ' engine)' if source else '' }},
+                so it was rejected.
+            </p>
+        </div>
+
+        {% if candidates %}
+        <div class="card" style="margin-top:1rem;">
+            <div class="card-header">
+                <h2 class="card-title">Closest matches — not reliable</h2>
+            </div>
+            {% for c in candidates %}
+            <div style="margin-bottom:.9rem;">
+                <div style="display:flex;justify-content:space-between;font-size:.86rem;margin-bottom:.3rem;gap:1rem;">
+                    <span>{{ c.name }}{% if c.crop %} <span style="color:var(--text-muted);">· {{ c.crop }}</span>{% endif %}</span>
+                    <strong>{{ '%.1f'|format(c.confidence * 100) }}%</strong>
+                </div>
+                <div style="height:7px;border-radius:99px;background:rgba(255,255,255,0.08);overflow:hidden;">
+                    <div style="height:100%;width:{{ '%.1f'|format(c.confidence * 100) }}%;background:linear-gradient(90deg,var(--primary),var(--accent));border-radius:99px;"></div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="card" style="margin-top:1rem;">
+            <div class="card-header">
+                <h2 class="card-title">Better photos to try</h2>
+            </div>
+            <ul style="font-size:.86rem;color:var(--text-muted);line-height:1.8;padding-left:1.1rem;margin:0;">
+                <li>One leaf, filling most of the frame</li>
+                <li>Even daylight, no hard shadows or glare</li>
+                <li>Plain background (a hand, paper, sky)</li>
+                <li>Sharp focus on the spots or discoloured areas</li>
+                <li>Only the 14 crops listed above are supported</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
