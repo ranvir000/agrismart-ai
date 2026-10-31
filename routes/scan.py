@@ -6,7 +6,10 @@ import mimetypes
 from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app, abort, Response, send_from_directory
 from flask_login import login_required, current_user
 from database.db import db, Scan
-from models.model_loader import analyze_image, allowed_file, UPLOAD_FOLDER
+from models.model_loader import (
+    analyze_image, allowed_file, normalize_upload, ImageFormatError,
+    SUPPORTED_FORMATS_LABEL, UPLOAD_FOLDER,
+)
 from models.vision_analyzer import analyze_with_vision, is_available, last_error
 from models.disease_info import get_disease
 
@@ -33,20 +36,14 @@ def scan_crop():
             return redirect(request.url)
             
         if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            # Create a unique filename to avoid overwrites
-            import uuid
-            unique_filename = f"{uuid.uuid4().hex}_{filename}"
-            
-            # Ensure upload directory exists
-            os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-            filepath = os.path.join(UPLOAD_FOLDER, unique_filename)
-            file.save(filepath)
-
-            # Keep a copy in the database so the photo survives a restart
-            with open(filepath, 'rb') as image_file:
-                image_bytes = image_file.read()
-            image_mimetype = mimetypes.guess_type(filename)[0] or 'image/jpeg'
+            # Any supported format is decoded and re-saved as a clean RGB JPEG, so
+            # the preview, the stored photo and the model always get a usable image.
+            try:
+                unique_filename, filepath, image_bytes = normalize_upload(file)
+            except ImageFormatError as exc:
+                flash(str(exc), 'danger')
+                return redirect(request.url)
+            image_mimetype = 'image/jpeg'
             
             # Vision model when configured, on-device model otherwise. Never guess:
             # with no usable result the user is asked for a better photo.
@@ -124,7 +121,7 @@ def scan_crop():
             return redirect(url_for('scan.scan_results', scan_id=scan.id))
             
         else:
-            flash('Allowed image types are -> png, jpg, jpeg, gif, webp', 'danger')
+            flash(f'Allowed image types are -> {SUPPORTED_FORMATS_LABEL}', 'danger')
             return redirect(request.url)
 
     return render_template('scan.html')
