@@ -8,11 +8,36 @@ from PIL import Image
 import numpy as np
 import requests
 import datetime
+from werkzeug.utils import secure_filename
 import random
 from models.disease_info import DISEASES, DISEASE_KEYS, get_disease
 
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'static', 'uploads')
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+# Every common camera / phone / download format. Uploads are decoded with Pillow
+# and re-saved as a clean RGB JPEG, so a format only has to be *decodable* to be
+# accepted. AVIF/HEIC work when their optional decoders are installed.
+ALLOWED_EXTENSIONS = {
+    'png', 'jpg', 'jpeg', 'jpe', 'jfif', 'gif', 'webp', 'bmp', 'dib', 'tif', 'tiff',
+    'ico', 'ppm', 'pgm', 'pbm', 'pnm', 'tga', 'jp2', 'j2k', 'jpf', 'avif', 'heic', 'heif',
+}
+SUPPORTED_FORMATS_LABEL = 'JPG, PNG, WEBP, GIF, BMP, TIFF, ICO, TGA, PPM, JP2, AVIF, HEIC'
+MAX_STORED_EDGE = 1600
+STORED_JPEG_QUALITY = 88
+
+# Optional decoders: used automatically when present, never required.
+try:  # pip install pillow-heif
+    import pillow_heif
+    pillow_heif.register_heif_opener()
+except Exception:
+    pillow_heif = None
+try:  # pip install pillow-avif-plugin
+    import pillow_avif  # noqa: F401
+except Exception:
+    pillow_avif = None
+
+
+class ImageFormatError(ValueError):
+    """Raised when an uploaded file cannot be decoded as an image."""
 
 # Global cache for ONNX inference session
 _onnx_session = None
@@ -97,6 +122,53 @@ def get_onnx_session():
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def normalize_upload(file_storage):
+    """Decode any supported image and store it as a clean RGB JPEG.
+
+    Flattens transparency, ignores animation, applies camera rotation metadata,
+    caps the long edge and re-encodes - so the saved photo, the preview and the
+    model all receive a well-formed image whatever the user uploaded.
+
+    Returns (unique_filename, filepath, jpeg_bytes); raises ImageFormatError with a
+    user-facing message when the bytes are not a readable image.
+    """
+    import uuid
+    from io import BytesIO
+    from PIL import Image, ImageOps
+
+    raw = file_storage.read()
+    if not raw:
+        raise ImageFormatError('That file was empty. Please choose an image and try again.')
+
+    try:
+        with Image.open(BytesIO(raw)) as opened:
+            opened.load()
+            img = ImageOps.exif_transpose(opened)
+            if img.mode in ('RGBA', 'LA', 'PA') or (img.mode == 'P' and 'transparency' in img.info):
+                rgba = img.convert('RGBA')
+                flat = Image.new('RGB', rgba.size, (255, 255, 255))
+                flat.paste(rgba, mask=rgba.split()[-1])
+                img = flat
+            elif img.mode != 'RGB':
+                img = img.convert('RGB')
+            img.thumbnail((MAX_STORED_EDGE, MAX_STORED_EDGE))
+            buffer = BytesIO()
+            img.save(buffer, format='JPEG', quality=STORED_JPEG_QUALITY, optimize=True)
+    except Exception:
+        raise ImageFormatError(
+            f'We could not read that file as an image. Supported types: {SUPPORTED_FORMATS_LABEL}.'
+        )
+
+    name = secure_filename(file_storage.filename or '') or 'photo'
+    stem = os.path.splitext(name)[0][:60] or 'photo'
+    unique_filename = f'{uuid.uuid4().hex}_{stem}.jpg'
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+    filepath = os.path.join(UPLOAD_FOLDER, unique_filename)
+    with open(filepath, 'wb') as out:
+        out.write(buffer.getvalue())
+    return unique_filename, filepath, buffer.getvalue()
 
 
 def analyze_image(image_path):
