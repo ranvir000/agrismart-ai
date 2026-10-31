@@ -335,7 +335,13 @@ def main():
 
     model = build_model(len(class_names)).to(device)
     criterion = nn.CrossEntropyLoss(label_smoothing=args.label_smoothing)
-    scaler = torch.amp.GradScaler(device.type) if device.type == "cuda" else None
+    if device.type == "cuda":
+        try:
+            scaler = torch.amp.GradScaler("cuda")
+        except AttributeError:  # torch < 2.3
+            scaler = torch.cuda.amp.GradScaler()
+    else:
+        scaler = None
 
     log, best_val, best_epoch, epochs_without_improvement, best_state = [], 0.0, 0, 0, None
     started = time.time()
