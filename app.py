@@ -62,8 +62,9 @@ def create_app(test_config=None):
         app.config.update(test_config)
         
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    # Max upload size: 10MB
-    app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024
+    # Max upload size: 16MB for large phone photos and TIFF/BMP scans. Uploads are
+    # re-encoded to a compact JPEG before storage, so this does not bloat the DB.
+    app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
     db.init_app(app)
     
