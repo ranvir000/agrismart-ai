@@ -9,3 +9,7 @@ fpdf2>=2.7.0
 gunicorn==21.2.0
 onnxruntime>=1.17.0
 psycopg[binary]>=3.2,<4
+# Optional: uncomment if you need HEIC/HEIF (iPhone) or AVIF uploads that the
+# browser does not convert to JPEG for you. Everything else works without these.
+# pillow-heif>=0.16.0
+# pillow-avif-plugin>=1.4.1
