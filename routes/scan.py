@@ -1,3 +1,4 @@
+import base64
 import json
 import os
 from werkzeug.utils import secure_filename
@@ -10,6 +11,10 @@ from models.vision_analyzer import analyze_with_vision, is_available, last_error
 from models.disease_info import get_disease
 
 scan_bp = Blueprint('scan', __name__)
+
+# Below this probability the app answers "outside my scope" instead of naming a
+# disease it is not confident about. Override per deployment with MIN_CONFIDENCE.
+MIN_CONFIDENCE = float(os.environ.get('MIN_CONFIDENCE', '0.45'))
 
 @scan_bp.route('/scan', methods=['GET', 'POST'])
 @login_required
@@ -62,6 +67,42 @@ def scan_crop():
             confidence = result['confidence']
             severity = result['severity']
             disease_info = get_disease(disease_key)
+
+            # Honest rejection: a weak best guess means "I do not know this one",
+            # not a made-up disease name.
+            if confidence < MIN_CONFIDENCE:
+                candidates = [{
+                    'name': disease_info['name'],
+                    'crop': disease_info['crop'],
+                    'confidence': confidence,
+                }]
+                for alt in result.get('alternatives', []):
+                    alt_info = {}
+                    if alt.get('key'):
+                        try:
+                            alt_info = get_disease(alt['key']) or {}
+                        except Exception:
+                            alt_info = {}
+                    candidates.append({
+                        'name': alt.get('name') or alt_info.get('name', '-'),
+                        'crop': alt_info.get('crop', ''),
+                        'confidence': alt.get('confidence', 0),
+                    })
+
+                with open(filepath, 'rb') as preview_file:
+                    preview_b64 = base64.b64encode(preview_file.read()).decode('ascii')
+                try:
+                    os.remove(filepath)
+                except OSError:
+                    pass
+
+                return render_template(
+                    'scan_unknown.html',
+                    preview=f"data:{image_mimetype};base64,{preview_b64}",
+                    candidates=candidates[:3],
+                    threshold=MIN_CONFIDENCE,
+                    source=result.get('source'),
+                )
             
             # Save to database
             scan = Scan(
