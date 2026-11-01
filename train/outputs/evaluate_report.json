@@ -1,0 +1,83 @@
+{
+  "onnx": "models/weights/mobilenet_v2_plantvillage_quantized.onnx",
+  "split": "test",
+  "images": 2207,
+  "top1_accuracy": 97.73,
+  "top3_accuracy": 99.91,
+  "macro_f1": 0.9777,
+  "weighted_f1": 0.9772,
+  "ece": 0.1426,
+  "thresholds": [
+    {
+      "threshold": 0.3,
+      "coverage": 99.18,
+      "accuracy": 98.04
+    },
+    {
+      "threshold": 0.35,
+      "coverage": 98.28,
+      "accuracy": 98.25
+    },
+    {
+      "threshold": 0.4,
+      "coverage": 97.24,
+      "accuracy": 98.51
+    },
+    {
+      "threshold": 0.45,
+      "coverage": 96.06,
+      "accuracy": 98.68
+    },
+    {
+      "threshold": 0.5,
+      "coverage": 94.38,
+      "accuracy": 98.99
+    },
+    {
+      "threshold": 0.55,
+      "coverage": 92.07,
+      "accuracy": 99.31
+    },
+    {
+      "threshold": 0.6,
+      "coverage": 89.62,
+      "accuracy": 99.39
+    },
+    {
+      "threshold": 0.65,
+      "coverage": 87.49,
+      "accuracy": 99.64
+    },
+    {
+      "threshold": 0.7,
+      "coverage": 84.32,
+      "accuracy": 99.73
+    },
+    {
+      "threshold": 0.75,
+      "coverage": 79.52,
+      "accuracy": 99.83
+    },
+    {
+      "threshold": 0.8,
+      "coverage": 73.18,
+      "accuracy": 99.88
+    },
+    {
+      "threshold": 0.85,
+      "coverage": 63.25,
+      "accuracy": 100.0
+    },
+    {
+      "threshold": 0.9,
+      "coverage": 46.26,
+      "accuracy": 100.0
+    },
+    {
+      "threshold": 0.95,
+      "coverage": 18.99,
+      "accuracy": 100.0
+    }
+  ],
+  "ood_dir": null
+}
