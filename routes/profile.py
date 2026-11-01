@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for
 from flask_login import login_required, current_user
 from werkzeug.security import check_password_hash, generate_password_hash
-from database.db import db
+from database.db import db, User
 
 profile_bp = Blueprint('profile', __name__)
 
@@ -20,6 +20,12 @@ def profile_page():
         new_pwd = request.form.get('new_password', '')
         
         if username and username != current_user.username:
+            # usernames are UNIQUE in the database: without this check a rename would
+            # crash the page with a 500 the moment another account already uses it.
+            taken = User.query.filter(User.username == username, User.id != current_user.id).first()
+            if taken:
+                flash('That username is already taken. Please choose another.', 'danger')
+                return redirect(url_for('profile.profile_page'))
             current_user.username = username
             
         current_user.city = city
