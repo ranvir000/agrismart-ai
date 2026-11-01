@@ -1,0 +1,48 @@
+AgriSmart AI - plant disease classifier
+==============================================================
+Model: MobileNetV2, two-phase transfer learning
+Classes: 38 | Test images: 2207
+Top-1 accuracy: 98.73% | Top-3: 99.95%
+Macro F1: 0.9876 | Weighted F1: 0.9873
+ECE: 0.1162
+
+class                                                  prec    rec     f1      n
+--------------------------------------------------------------------------------
+Apple___Apple_scab                                    1.000  1.000  1.000     60
+Apple___Black_rot                                     1.000  1.000  1.000     60
+Apple___Cedar_apple_rust                              1.000  1.000  1.000     41
+Apple___healthy                                       1.000  1.000  1.000     60
+Blueberry___healthy                                   1.000  1.000  1.000     60
+Cherry_(including_sour)___Powdery_mildew              1.000  1.000  1.000     60
+Cherry_(including_sour)___healthy                     1.000  1.000  1.000     60
+Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot    0.982  0.917  0.948     60
+Corn_(maize)___Common_rust_                           1.000  1.000  1.000     60
+Corn_(maize)___Northern_Leaf_Blight                   0.921  0.967  0.943     60
+Corn_(maize)___healthy                                0.984  1.000  0.992     60
+Grape___Black_rot                                     1.000  1.000  1.000     60
+Grape___Esca_(Black_Measles)                          1.000  1.000  1.000     60
+Grape___Leaf_blight_(Isariopsis_Leaf_Spot)            1.000  1.000  1.000     60
+Grape___healthy                                       1.000  1.000  1.000     60
+Orange___Haunglongbing_(Citrus_greening)              1.000  1.000  1.000     60
+Peach___Bacterial_spot                                1.000  0.983  0.992     60
+Peach___healthy                                       0.982  1.000  0.991     54
+Pepper,_bell___Bacterial_spot                         0.984  1.000  0.992     60
+Pepper,_bell___healthy                                1.000  1.000  1.000     60
+Potato___Early_blight                                 1.000  1.000  1.000     60
+Potato___Late_blight                                  0.968  1.000  0.984     60
+Potato___healthy                                      1.000  1.000  1.000     22
+Raspberry___healthy                                   1.000  1.000  1.000     55
+Soybean___healthy                                     1.000  1.000  1.000     60
+Squash___Powdery_mildew                               1.000  1.000  1.000     60
+Strawberry___Leaf_scorch                              1.000  1.000  1.000     60
+Strawberry___healthy                                  1.000  1.000  1.000     60
+Tomato___Bacterial_spot                               0.966  0.950  0.958     60
+Tomato___Early_blight                                 0.937  0.983  0.959     60
+Tomato___Late_blight                                  0.964  0.900  0.931     60
+Tomato___Leaf_Mold                                    0.983  0.967  0.975     60
+Tomato___Septoria_leaf_spot                           0.967  0.967  0.967     60
+Tomato___Spider_mites Two-spotted_spider_mite         0.967  0.983  0.975     60
+Tomato___Target_Spot                                  1.000  0.967  0.983     60
+Tomato___Tomato_Yellow_Leaf_Curl_Virus                0.983  0.950  0.966     60
+Tomato___Tomato_mosaic_virus                          0.948  1.000  0.973     55
+Tomato___healthy                                      1.000  1.000  1.000     60
