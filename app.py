@@ -103,7 +103,7 @@ def create_app(test_config=None):
 
     @app.errorhandler(413)
     def request_entity_too_large(e):
-        return "File too large. Max size is 10MB.", 413
+        return "File too large. Max size is 16MB.", 413
 
     @app.context_processor
     def inject_now():
