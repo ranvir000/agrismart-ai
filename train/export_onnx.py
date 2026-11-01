@@ -60,7 +60,7 @@ def main():
         input_names=["input"],
         output_names=["logits"],
         dynamic_axes={"input": {0: "batch"}, "logits": {0: "batch"}},
-        opset_version=13,
+        opset_version=13, dynamo=False,
     )
     print(f"Exported full-precision model -> {ONNX_PATH}")
 
