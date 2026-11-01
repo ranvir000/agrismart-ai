@@ -1,0 +1,146 @@
+{
+  "num_classes": 38,
+  "best_val_accuracy": 98.73,
+  "best_epoch": 16,
+  "epochs_run": 21,
+  "train_seconds": 2320.3,
+  "test": {
+    "accuracy": 98.73,
+    "top3_accuracy": 99.95,
+    "precision_macro": 0.9877,
+    "recall_macro": 0.9877,
+    "macro_f1": 0.9876,
+    "precision_weighted": 0.9875,
+    "recall_weighted": 0.9873,
+    "weighted_f1": 0.9873,
+    "ece": 0.1162
+  },
+  "thresholds": [
+    {
+      "threshold": 0.3,
+      "coverage": 0.9972813774354327,
+      "accuracy_on_accepted": 0.9886415265788278
+    },
+    {
+      "threshold": 0.35,
+      "coverage": 0.9932034435885818,
+      "accuracy_on_accepted": 0.9890510948905109
+    },
+    {
+      "threshold": 0.4,
+      "coverage": 0.987313094698686,
+      "accuracy_on_accepted": 0.9912804038549794
+    },
+    {
+      "threshold": 0.45,
+      "coverage": 0.9805165382872678,
+      "accuracy_on_accepted": 0.9921441774491682
+    },
+    {
+      "threshold": 0.5,
+      "coverage": 0.970548255550521,
+      "accuracy_on_accepted": 0.9939309056956116
+    },
+    {
+      "threshold": 0.55,
+      "coverage": 0.9610330765745355,
+      "accuracy_on_accepted": 0.9952852428099953
+    },
+    {
+      "threshold": 0.6,
+      "coverage": 0.945174444947893,
+      "accuracy_on_accepted": 0.9966442953020134
+    },
+    {
+      "threshold": 0.65,
+      "coverage": 0.9297689170820118,
+      "accuracy_on_accepted": 0.9975633528265108
+    },
+    {
+      "threshold": 0.7,
+      "coverage": 0.9057544177616674,
+      "accuracy_on_accepted": 0.9984992496248124
+    },
+    {
+      "threshold": 0.75,
+      "coverage": 0.8699592206615315,
+      "accuracy_on_accepted": 0.9989583333333333
+    },
+    {
+      "threshold": 0.8,
+      "coverage": 0.8210240144993204,
+      "accuracy_on_accepted": 1.0
+    },
+    {
+      "threshold": 0.85,
+      "coverage": 0.7299501585863163,
+      "accuracy_on_accepted": 1.0
+    },
+    {
+      "threshold": 0.9,
+      "coverage": 0.5690983235160851,
+      "accuracy_on_accepted": 1.0
+    },
+    {
+      "threshold": 0.95,
+      "coverage": 0.26415949252378795,
+      "accuracy_on_accepted": 1.0
+    }
+  ],
+  "class_names": [
+    "Apple___Apple_scab",
+    "Apple___Black_rot",
+    "Apple___Cedar_apple_rust",
+    "Apple___healthy",
+    "Blueberry___healthy",
+    "Cherry_(including_sour)___Powdery_mildew",
+    "Cherry_(including_sour)___healthy",
+    "Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot",
+    "Corn_(maize)___Common_rust_",
+    "Corn_(maize)___Northern_Leaf_Blight",
+    "Corn_(maize)___healthy",
+    "Grape___Black_rot",
+    "Grape___Esca_(Black_Measles)",
+    "Grape___Leaf_blight_(Isariopsis_Leaf_Spot)",
+    "Grape___healthy",
+    "Orange___Haunglongbing_(Citrus_greening)",
+    "Peach___Bacterial_spot",
+    "Peach___healthy",
+    "Pepper,_bell___Bacterial_spot",
+    "Pepper,_bell___healthy",
+    "Potato___Early_blight",
+    "Potato___Late_blight",
+    "Potato___healthy",
+    "Raspberry___healthy",
+    "Soybean___healthy",
+    "Squash___Powdery_mildew",
+    "Strawberry___Leaf_scorch",
+    "Strawberry___healthy",
+    "Tomato___Bacterial_spot",
+    "Tomato___Early_blight",
+    "Tomato___Late_blight",
+    "Tomato___Leaf_Mold",
+    "Tomato___Septoria_leaf_spot",
+    "Tomato___Spider_mites Two-spotted_spider_mite",
+    "Tomato___Target_Spot",
+    "Tomato___Tomato_Yellow_Leaf_Curl_Virus",
+    "Tomato___Tomato_mosaic_virus",
+    "Tomato___healthy"
+  ],
+  "config": {
+    "data": "train/plantvillage_dataset",
+    "out": "train/outputs",
+    "epochs": 25,
+    "phase1_epochs": 3,
+    "batch": 48,
+    "lr_head": 0.001,
+    "lr_finetune": 0.0001,
+    "weight_decay": 0.0001,
+    "label_smoothing": 0.1,
+    "unfreeze_blocks": 5,
+    "patience": 5,
+    "img_size": 224,
+    "workers": 0,
+    "seed": 42
+  }
+}
