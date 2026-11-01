@@ -9,3 +9,6 @@ seaborn>=0.13
 numpy>=1.26
 pillow>=10.0
 kaggle>=1.6
+onnx
+onnxruntime
+onnxscript
