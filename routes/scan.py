@@ -17,7 +17,7 @@ scan_bp = Blueprint('scan', __name__)
 
 # Below this probability the app answers "outside my scope" instead of naming a
 # disease it is not confident about. Override per deployment with MIN_CONFIDENCE.
-MIN_CONFIDENCE = float(os.environ.get('MIN_CONFIDENCE', '0.45'))
+MIN_CONFIDENCE = float(os.environ.get('MIN_CONFIDENCE', '0.60'))
 
 @scan_bp.route('/scan', methods=['GET', 'POST'])
 @login_required
