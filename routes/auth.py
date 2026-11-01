@@ -24,8 +24,10 @@ def login():
         if user and check_password_hash(user.password_hash, password):
             login_user(user, remember=remember)
             flash(f'Welcome back, {user.username}!', 'success')
-            next_page = request.args.get('next')
-            if next_page:
+            # Only follow same-site relative paths, so a crafted ?next=https://evil
+            # link cannot bounce the user (and their session) off the site after login.
+            next_page = request.args.get('next', '')
+            if next_page.startswith('/') and not next_page.startswith('//'):
                 return redirect(next_page)
             if user.is_admin:
                 return redirect(url_for('admin.admin_panel'))
