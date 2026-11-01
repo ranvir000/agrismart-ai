@@ -1,0 +1,66 @@
+AgriSmart AI - deployed ONNX model evaluation
+==========================================================
+Model file : models/weights/mobilenet_v2_plantvillage_quantized.onnx
+Split      : test (2207 images, 38 classes)
+Top-1 acc  : 97.73%
+Top-3 acc  : 99.91%
+Macro P/R/F1     : 0.9788 / 0.9779 / 0.9777
+Weighted P/R/F1  : 0.9783 / 0.9773 / 0.9772
+Calibration (ECE): 0.1426
+
+Threshold sweep (what the app shows vs what it refuses):
+ threshold   coverage   accuracy
+      0.30     99.18%     98.04%
+      0.35     98.28%     98.25%
+      0.40     97.24%     98.51%
+      0.45     96.06%     98.68%
+      0.50     94.38%     98.99%
+      0.55     92.07%     99.31%
+      0.60     89.62%     99.39%
+      0.65     87.49%     99.64%
+      0.70     84.32%     99.73%
+      0.75     79.52%     99.83%
+      0.80     73.18%     99.88%
+      0.85     63.25%    100.00%
+      0.90     46.26%    100.00%
+      0.95     18.99%    100.00%
+
+Per-class F1:
+  Apple___Apple_scab                                   f1=1.000 n=60
+  Apple___Black_rot                                    f1=1.000 n=60
+  Apple___Cedar_apple_rust                             f1=0.988 n=41
+  Apple___healthy                                      f1=1.000 n=60
+  Blueberry___healthy                                  f1=1.000 n=60
+  Cherry_(including_sour)___Powdery_mildew             f1=1.000 n=60
+  Cherry_(including_sour)___healthy                    f1=1.000 n=60
+  Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot   f1=0.947 n=60
+  Corn_(maize)___Common_rust_                          f1=1.000 n=60
+  Corn_(maize)___Northern_Leaf_Blight                  f1=0.944 n=60
+  Corn_(maize)___healthy                               f1=0.992 n=60
+  Grape___Black_rot                                    f1=1.000 n=60
+  Grape___Esca_(Black_Measles)                         f1=1.000 n=60
+  Grape___Leaf_blight_(Isariopsis_Leaf_Spot)           f1=0.992 n=60
+  Grape___healthy                                      f1=1.000 n=60
+  Orange___Haunglongbing_(Citrus_greening)             f1=1.000 n=60
+  Peach___Bacterial_spot                               f1=0.983 n=60
+  Peach___healthy                                      f1=0.982 n=54
+  Pepper,_bell___Bacterial_spot                        f1=0.992 n=60
+  Pepper,_bell___healthy                               f1=1.000 n=60
+  Potato___Early_blight                                f1=1.000 n=60
+  Potato___Late_blight                                 f1=0.960 n=60
+  Potato___healthy                                     f1=1.000 n=22
+  Raspberry___healthy                                  f1=1.000 n=55
+  Soybean___healthy                                    f1=1.000 n=60
+  Squash___Powdery_mildew                              f1=1.000 n=60
+  Strawberry___Leaf_scorch                             f1=0.992 n=60
+  Strawberry___healthy                                 f1=1.000 n=60
+  Tomato___Bacterial_spot                              f1=0.862 n=60
+  Tomato___Early_blight                                f1=0.941 n=60
+  Tomato___Late_blight                                 f1=0.897 n=60
+  Tomato___Leaf_Mold                                   f1=0.983 n=60
+  Tomato___Septoria_leaf_spot                          f1=0.891 n=60
+  Tomato___Spider_mites Two-spotted_spider_mite        f1=0.967 n=60
+  Tomato___Target_Spot                                 f1=0.919 n=60
+  Tomato___Tomato_Yellow_Leaf_Curl_Virus               f1=0.966 n=60
+  Tomato___Tomato_mosaic_virus                         f1=0.965 n=55
+  Tomato___healthy                                     f1=0.992 n=60
