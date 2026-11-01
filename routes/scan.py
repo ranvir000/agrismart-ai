@@ -45,17 +45,19 @@ def scan_crop():
                 return redirect(request.url)
             image_mimetype = 'image/jpeg'
             
-            # Vision model when configured, on-device model otherwise. Never guess:
-            # with no usable result the user is asked for a better photo.
-            result = analyze_with_vision(filepath)
-            if result is None and is_available():
-                # Key is set but the cloud call failed: say WHY instead of silently
-                # showing a weak offline answer.
-                flash(f"Cloud AI analysis failed: {last_error() or 'unknown error'}. "
-                      f"Showing the offline model's result instead.", "warning")
-                result = analyze_image(filepath)
-            else:
-                result = result or analyze_image(filepath)
+            # 1) The custom PlantVillage CNN is the PRIMARY classifier: it is the model
+            #    trained and evaluated for this project.
+            # 2) Gemini Vision is only a fallback for photos the CNN is unsure about
+            #    (real-world phone shots), so the cloud answer can never replace the
+            #    model under test on the images it handles confidently.
+            result = analyze_image(filepath)
+            cnn_confidence = (result or {}).get('confidence') or 0.0
+            if not result or not result.get('ok') or cnn_confidence < MIN_CONFIDENCE:
+                cloud = analyze_with_vision(filepath)
+                if cloud and cloud.get('ok'):
+                    result = cloud
+                elif is_available():
+                    flash(f"Cloud AI analysis unavailable: {last_error() or 'unknown error'}.", 'warning')
             if not result or not result.get('ok'):
                 flash('We could not analyse that photo. Please try a clearer, closer shot of the affected leaf.', 'warning')
                 return redirect(url_for('scan.scan_crop'))
