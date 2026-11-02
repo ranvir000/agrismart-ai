@@ -54,20 +54,11 @@
                 {% endfor %}
             </div>
             {% endif %}
-            {% if scan.analysis_source == 'vision' %}
-            <div style="margin-top:.45rem;font-size:.72rem;color:var(--text-muted);">
-                Analysed with the AI vision model &mdash; the trained on-device model was not
-                confident enough on this photo to answer on its own.
+            <div style="margin-top:.6rem;font-size:.78rem;color:var(--text-muted);">
+                Final answer from
+                <strong>{% if scan.analysis_source == 'vision' %}the Gemini vision model{% else %}the trained on-device model{% endif %}</strong>
+                &mdash; both engines' own answers are shown below for comparison.
             </div>
-            {% else %}
-            <div style="margin-top:.75rem;padding:.6rem .8rem;border-radius:8px;background:rgba(230,126,34,.12);border:1px solid rgba(230,126,34,.45);font-size:.78rem;">
-                <i class="fas fa-circle-exclamation" style="color:#e67e22;"></i>
-                <strong>Analysed by the trained on-device model.</strong>
-                It was trained on clean laboratory photos and can misread real-world photos
-                (for example calling every leaf &ldquo;Pepper Bacterial Spot&rdquo;).
-                If a GEMINI_API_KEY is configured, the yellow notice above explains why cloud analysis failed.
-            </div>
-            {% endif %}
         </div>
     </div>
     <img src="{{ url_for('scan.scan_image', scan_id=scan.id) }}"
@@ -75,6 +66,8 @@
          onerror="this.style.display='none'"
          alt="Scanned leaf">
 </div>
+
+{% if comparison %}{% include "_engine_compare.html" %}{% endif %}
 
 <div class="grid-2" style="align-items:start;">
     <!-- ── Left Column ─────────────────────────────────────── -->
