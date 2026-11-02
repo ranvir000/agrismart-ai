@@ -42,6 +42,9 @@ class Scan(db.Model):
     # Runners-up plus which engine produced the diagnosis, so results stay transparent
     alternatives = db.Column(db.Text, nullable=True)
     analysis_source = db.Column(db.String(20), nullable=True)
+    # What each engine said about the same photo (JSON), so the on-device and the
+    # vision model answers can be compared side by side instead of merged.
+    engine_outputs = db.Column(db.Text, nullable=True)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     notes = db.Column(db.Text, nullable=True)
 
