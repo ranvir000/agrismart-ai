@@ -63,14 +63,21 @@ def scan_crop():
             cloud = analyze_with_vision(filepath)
             cloud_ok = bool(cloud and cloud.get('ok'))
 
+            # The vision model refuses to name anything when the plant itself is not one
+            # of the supported crops; that verdict must not be overruled by a merely
+            # "fairly sure" on-device guess, or an out-of-library leaf (e.g. rice) gets a
+            # confidently wrong library name.
+            scope_refusal = cloud if (cloud and cloud.get('out_of_scope')) else None
+            forced_unknown = bool(scope_refusal) and not cnn_trusted
+
             if cnn_trusted:
                 result = cnn
             elif cloud_ok:
                 result = cloud
             else:
                 result = cnn
-                if is_available():
-                    flash(f"Cloud AI analysis unavailable: {last_error() or 'unknown error'}.", 'warning')
+                if is_available() and not scope_refusal:
+                    flash('The cloud analysis could not be reached just now, so this result comes from the on-device model only.', 'warning')
             if not result or not result.get('ok'):
                 flash('We could not analyse that photo. Please try a clearer, closer shot of the affected leaf.', 'warning')
                 return redirect(url_for('scan.scan_crop'))
@@ -96,9 +103,18 @@ def scan_crop():
             severity = result['severity']
             disease_info = get_disease(disease_key)
 
-            # Honest rejection: a weak best guess means "I do not know this one",
-            # not a made-up disease name.
-            if confidence < MIN_CONFIDENCE:
+            reason = None
+            if forced_unknown:
+                reason = (
+                    f"The AI could not match this plant to the {scope_refusal['crop_count']} crops "
+                    f"this app covers"
+                    + (f" (it saw: {scope_refusal['note']})" if scope_refusal.get('note') else '')
+                    + ", so no disease name was guessed."
+                )
+
+            # Honest rejection: a weak best guess - or a photo of a plant outside the
+            # library - means "I do not know this one", not a made-up disease name.
+            if confidence < MIN_CONFIDENCE or forced_unknown:
                 candidates = [{
                     'name': disease_info['name'],
                     'crop': disease_info['crop'],
@@ -130,6 +146,7 @@ def scan_crop():
                     candidates=candidates[:3],
                     threshold=MIN_CONFIDENCE,
                     source=result.get('source'),
+                    reason=reason,
                 )
             
             # Save to database
