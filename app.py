@@ -33,6 +33,7 @@ def ensure_schema():
         'image_mimetype': 'VARCHAR(50)',
         'alternatives': 'TEXT',
         'analysis_source': 'VARCHAR(20)',
+        'engine_outputs': 'TEXT',
     }
 
     with db.engine.begin() as connection:
