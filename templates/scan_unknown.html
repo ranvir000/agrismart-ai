@@ -5,7 +5,7 @@
 <div class="page-header">
     <div>
         <h1 class="page-title">🤔 Outside My Scope</h1>
-        <p class="page-subtitle">The model was not confident enough to name a disease for this photo</p>
+        <p class="page-subtitle">{% if reason %}This photo is outside the diseases this model was trained on{% else %}The model was not confident enough to name a disease for this photo{% endif %}</p>
     </div>
 </div>
 
@@ -40,11 +40,17 @@
                 When a photo does not look like one of those crops, the honest answer is
                 <strong>“outside my scope”</strong> instead of a wrong disease name.
             </p>
+            {% if reason %}
+            <p style="font-size:.9rem;color:var(--text-muted);line-height:1.65;margin-top:.75rem;">
+                {{ reason }}
+            </p>
+            {% else %}
             <p style="font-size:.9rem;color:var(--text-muted);line-height:1.65;margin-top:.75rem;">
                 The best guess scored below the <strong>{{ '%.0f'|format(threshold * 100) }}%</strong>
                 confidence threshold{{ ' (answered by the ' ~ source ~ ' engine)' if source else '' }},
                 so it was rejected.
             </p>
+            {% endif %}
         </div>
 
         {% if candidates %}
