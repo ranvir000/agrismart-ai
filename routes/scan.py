@@ -25,6 +25,40 @@ MIN_CONFIDENCE = float(os.environ.get('MIN_CONFIDENCE', '0.60'))
 # correct overall - so a merely "fairly sure" CNN guess is not shown as fact.
 CNN_TRUST_CONFIDENCE = float(os.environ.get('CNN_TRUST_CONFIDENCE', '0.85'))
 
+
+def _engine_summary(prediction):
+    """One engine's own verdict, shaped for the side-by-side comparison view."""
+    if not prediction:
+        return {'status': 'unavailable'}
+    if prediction.get('out_of_scope'):
+        return {
+            'status': 'outside',
+            'crop': prediction.get('crop') or 'Unknown',
+            'note': prediction.get('note') or '',
+        }
+    if not prediction.get('ok'):
+        return {'status': 'unavailable'}
+    info = get_disease(prediction['disease_key']) or {}
+    return {
+        'status': 'named',
+        'key': prediction['disease_key'],
+        'name': info.get('name') or prediction['disease_key'],
+        'crop': info.get('crop') or '',
+        'confidence': round(float(prediction.get('confidence') or 0), 4),
+        'note': prediction.get('note') or '',
+    }
+
+
+def build_comparison(cnn, cloud):
+    """Both engines' answers for the same photo, kept apart so they can be compared."""
+    local = _engine_summary(cnn)
+    vision = _engine_summary(cloud)
+    if local['status'] == 'named' and vision['status'] == 'named':
+        verdict = 'agree' if local['key'] == vision['key'] else 'differ'
+    else:
+        verdict = 'partial'
+    return {'local': local, 'vision': vision, 'verdict': verdict}
+
 @scan_bp.route('/scan', methods=['GET', 'POST'])
 @login_required
 def scan_crop():
@@ -62,6 +96,9 @@ def scan_crop():
 
             cloud = analyze_with_vision(filepath)
             cloud_ok = bool(cloud and cloud.get('ok'))
+
+            # Keep both raw answers, whatever the app decides to show as its answer.
+            comparison = build_comparison(cnn, cloud)
 
             # The vision model refuses to name anything when the plant itself is not one
             # of the supported crops; that verdict must not be overruled by a merely
@@ -147,6 +184,7 @@ def scan_crop():
                     threshold=MIN_CONFIDENCE,
                     source=result.get('source'),
                     reason=reason,
+                    comparison=comparison,
                 )
             
             # Save to database
@@ -161,7 +199,8 @@ def scan_crop():
                 image_data=image_bytes,
                 image_mimetype=image_mimetype,
                 alternatives=json.dumps(result.get('alternatives', [])),
-                analysis_source=result.get('source', 'on-device')
+                analysis_source=result.get('source', 'on-device'),
+                engine_outputs=json.dumps(comparison)
             )
             db.session.add(scan)
             db.session.commit()
@@ -200,7 +239,14 @@ def scan_results(scan_id):
         alternatives = json.loads(scan.alternatives) if scan.alternatives else []
     except ValueError:
         alternatives = []
-    return render_template('scan_results.html', scan=scan, disease_info=disease_info, alternatives=alternatives)
+    comparison = None
+    if scan.engine_outputs:
+        try:
+            comparison = json.loads(scan.engine_outputs)
+        except ValueError:
+            comparison = None
+    return render_template('scan_results.html', scan=scan, disease_info=disease_info,
+                           alternatives=alternatives, comparison=comparison)
 
 @scan_bp.route('/scan/download-pdf/<int:scan_id>')
 @login_required
