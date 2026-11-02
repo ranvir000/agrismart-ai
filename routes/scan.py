@@ -19,6 +19,12 @@ scan_bp = Blueprint('scan', __name__)
 # disease it is not confident about. Override per deployment with MIN_CONFIDENCE.
 MIN_CONFIDENCE = float(os.environ.get('MIN_CONFIDENCE', '0.60'))
 
+# The trained CNN is only allowed to give the final answer above this confidence.
+# Measured on the deployed quantized model: at >=0.85 it is ~100% correct on
+# PlantVillage-style photos, while on real-world / internet photos it is only ~26%
+# correct overall - so a merely "fairly sure" CNN guess is not shown as fact.
+CNN_TRUST_CONFIDENCE = float(os.environ.get('CNN_TRUST_CONFIDENCE', '0.85'))
+
 @scan_bp.route('/scan', methods=['GET', 'POST'])
 @login_required
 def scan_crop():
@@ -45,22 +51,45 @@ def scan_crop():
                 return redirect(request.url)
             image_mimetype = 'image/jpeg'
             
-            # 1) The custom PlantVillage CNN is the PRIMARY classifier: it is the model
-            #    trained and evaluated for this project.
-            # 2) Gemini Vision is only a fallback for photos the CNN is unsure about
-            #    (real-world phone shots), so the cloud answer can never replace the
-            #    model under test on the images it handles confidently.
-            result = analyze_image(filepath)
-            cnn_confidence = (result or {}).get('confidence') or 0.0
-            if not result or not result.get('ok') or cnn_confidence < MIN_CONFIDENCE:
-                cloud = analyze_with_vision(filepath)
-                if cloud and cloud.get('ok'):
-                    result = cloud
-                elif is_available():
+            # 1) The trained PlantVillage CNN answers on its own only when it is very
+            #    confident (see CNN_TRUST_CONFIDENCE) - the range where it is measured
+            #    to be ~100% correct.
+            # 2) Gemini Vision answers everything else, because the CNN drops to ~26%
+            #    accuracy on real-world / internet photos even when it looks sure.
+            cnn = analyze_image(filepath)
+            cnn_ok = bool(cnn and cnn.get('ok'))
+            cnn_trusted = cnn_ok and cnn['confidence'] >= CNN_TRUST_CONFIDENCE
+
+            cloud = analyze_with_vision(filepath)
+            cloud_ok = bool(cloud and cloud.get('ok'))
+
+            if cnn_trusted:
+                result = cnn
+            elif cloud_ok:
+                result = cloud
+            else:
+                result = cnn
+                if is_available():
                     flash(f"Cloud AI analysis unavailable: {last_error() or 'unknown error'}.", 'warning')
             if not result or not result.get('ok'):
                 flash('We could not analyse that photo. Please try a clearer, closer shot of the affected leaf.', 'warning')
                 return redirect(url_for('scan.scan_crop'))
+
+            # A disagreement between the two engines must never be hidden behind one
+            # confident-looking name: the other opinion is shown as an alternative.
+            other = None
+            if result is cloud and cnn_ok and cnn['disease_key'] != result['disease_key']:
+                other = cnn
+            elif result is cnn and cloud_ok and cloud['disease_key'] != result['disease_key']:
+                other = cloud
+            if other:
+                other_info = get_disease(other['disease_key'])
+                result = dict(result)
+                result['alternatives'] = [{
+                    'key': other['disease_key'],
+                    'name': other_info['name'],
+                    'confidence': other['confidence'],
+                }] + list(result.get('alternatives') or [])
 
             disease_key = result['disease_key']
             confidence = result['confidence']
