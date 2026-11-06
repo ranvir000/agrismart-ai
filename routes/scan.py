@@ -107,7 +107,10 @@ def scan_crop():
             scope_refusal = cloud if (cloud and cloud.get('out_of_scope')) else None
             forced_unknown = bool(scope_refusal) and not cnn_trusted
 
-            if cnn_trusted:
+            # The trained model is always the headline answer: this app exists to show
+            # what our own CNN predicts, even when it is unsure. Gemini is only used when
+            # the CNN produced nothing at all, and stays visible as a cross-check below.
+            if cnn_ok:
                 result = cnn
             elif cloud_ok:
                 result = cloud
@@ -246,7 +249,8 @@ def scan_results(scan_id):
         except ValueError:
             comparison = None
     return render_template('scan_results.html', scan=scan, disease_info=disease_info,
-                           alternatives=alternatives, comparison=comparison)
+                           alternatives=alternatives, comparison=comparison,
+                           trust_threshold=CNN_TRUST_CONFIDENCE)
 
 @scan_bp.route('/scan/download-pdf/<int:scan_id>')
 @login_required
