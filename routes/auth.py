@@ -23,7 +23,7 @@ def login():
         user = User.query.filter_by(email=email).first()
         if user and check_password_hash(user.password_hash, password):
             session.permanent = True
-        login_user(user, remember=remember)
+            login_user(user, remember=remember)
             flash(f'Welcome back, {user.username}!', 'success')
             # Only follow same-site relative paths, so a crafted ?next=https://evil
             # link cannot bounce the user (and their session) off the site after login.
