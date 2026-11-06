@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request
+from flask import Blueprint, render_template, redirect, url_for, flash, request, session
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import check_password_hash, generate_password_hash
 from database.db import db, User
@@ -22,7 +22,8 @@ def login():
 
         user = User.query.filter_by(email=email).first()
         if user and check_password_hash(user.password_hash, password):
-            login_user(user, remember=remember)
+            session.permanent = True
+        login_user(user, remember=remember)
             flash(f'Welcome back, {user.username}!', 'success')
             # Only follow same-site relative paths, so a crafted ?next=https://evil
             # link cannot bounce the user (and their session) off the site after login.
