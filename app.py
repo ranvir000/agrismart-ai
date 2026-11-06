@@ -12,7 +12,7 @@ from routes.profile import profile_bp
 from routes.diseases import diseases_bp
 from routes.admin import admin_bp
 from werkzeug.security import generate_password_hash
-from datetime import datetime
+from datetime import datetime, timedelta
 
 def ensure_schema():
     """Add columns introduced after a database was first created.
@@ -63,6 +63,16 @@ def create_app(test_config=None):
         app.config.update(test_config)
         
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+    # A signed-in browser must not stay signed in indefinitely. Flask-Login's
+    # "remember me" cookie defaults to 365 days, which made the app open straight
+    # into a previously used account even after weeks. Both are capped here.
+    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=12)
+    app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=1)
+    app.config['REMEMBER_COOKIE_HTTPONLY'] = True
+    app.config['REMEMBER_COOKIE_SAMESITE'] = 'Lax'
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
     # Max upload size: 16MB for large phone photos and TIFF/BMP scans. Uploads are
     # re-encoded to a compact JPEG before storage, so this does not bloat the DB.
     app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
