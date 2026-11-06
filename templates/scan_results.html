@@ -34,7 +34,7 @@
         </div>
         <div class="confidence-bar" style="margin-top:.75rem;">
             <div style="display:flex;justify-content:space-between;font-size:.78rem;color:var(--text-muted);margin-bottom:.3rem;">
-                <span>AI Confidence</span>
+                <span>On-device model confidence</span>
                 <strong style="color:var(--text);">{{ (scan.confidence * 100) | round(1) }}%</strong>
             </div>
             <div class="confidence-track">
@@ -55,9 +55,14 @@
             </div>
             {% endif %}
             <div style="margin-top:.6rem;font-size:.78rem;color:var(--text-muted);">
-                Final answer from
-                <strong>{% if scan.analysis_source == 'vision' %}the Gemini vision model{% else %}the trained on-device model{% endif %}</strong>
-                &mdash; both engines' own answers are shown below for comparison.
+                <i class="fas fa-microchip" style="margin-right:.3rem;"></i>
+                <strong>The trained on-device model's own answer.</strong>
+                {% if scan.confidence < trust_threshold %}
+                It was not fully certain, so the Gemini vision model's answer for the same photo
+                is shown next to it below &mdash; neither number is edited.
+                {% else %}
+                The Gemini vision model's answer for the same photo is shown below for comparison.
+                {% endif %}
             </div>
         </div>
     </div>
