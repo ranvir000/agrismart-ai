@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template
+from flask import Flask, render_template, abort, request as flask_request
 from flask_login import LoginManager
 from database.db import db, User
 from routes.auth import auth_bp
@@ -76,6 +76,22 @@ def create_app(test_config=None):
     # Max upload size: 16MB for large phone photos and TIFF/BMP scans. Uploads are
     # re-encoded to a compact JPEG before storage, so this does not bloat the DB.
     app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
+
+    # Cross-site form posts are rejected by a same-origin check. Browsers always send
+    # an Origin (or at least a Referer) header on POST, so a write coming from another
+    # site is refused before it reaches a view. Requests carrying neither header (the
+    # test client, command-line tools) are unaffected, and every app form is same-origin.
+    @app.before_request
+    def reject_cross_site_writes():
+        if flask_request.method not in ('POST', 'PUT', 'PATCH', 'DELETE'):
+            return None
+        origin = flask_request.headers.get('Origin') or flask_request.headers.get('Referer') or ''
+        if not origin:
+            return None
+        origin_host = origin.split('://')[-1].split('/')[0].strip()
+        if origin_host and origin_host != flask_request.host:
+            abort(403)
+        return None
 
     db.init_app(app)
     

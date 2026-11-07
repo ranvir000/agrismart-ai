@@ -59,6 +59,14 @@ def build_comparison(cnn, cloud):
         verdict = 'partial'
     return {'local': local, 'vision': vision, 'verdict': verdict}
 
+
+def _engine_crop(prediction):
+    """The crop implied by an engine's own answer ('' when it named nothing)."""
+    if not prediction or not prediction.get('ok') or prediction.get('out_of_scope'):
+        return ''
+    info = get_disease(prediction.get('disease_key')) or {}
+    return (info.get('crop') or '').strip()
+
 @scan_bp.route('/scan', methods=['GET', 'POST'])
 @login_required
 def scan_crop():
@@ -107,6 +115,17 @@ def scan_crop():
             scope_refusal = cloud if (cloud and cloud.get('out_of_scope')) else None
             forced_unknown = bool(scope_refusal) and not cnn_trusted
 
+            # If the two engines name diseases of different crops, one of them is reading
+            # the wrong plant and we have no way to tell which. A confident-looking name
+            # from the wrong crop (a potato leaf reported as a tomato disease) is worse
+            # than no answer, so this photo goes to the review page with both opinions
+            # shown instead of being saved as a diagnosis.
+            cnn_crop = _engine_crop(cnn)
+            cloud_crop = _engine_crop(cloud)
+            crop_conflict = bool(cnn_crop and cloud_crop and cnn_crop.lower() != cloud_crop.lower())
+            if crop_conflict:
+                forced_unknown = True
+
             # The trained model is always the headline answer: this app exists to show
             # what our own CNN predicts, even when it is unsure. Gemini is only used when
             # the CNN produced nothing at all, and stays visible as a cross-check below.
@@ -144,7 +163,14 @@ def scan_crop():
             disease_info = get_disease(disease_key)
 
             reason = None
-            if forced_unknown:
+            if crop_conflict:
+                reason = (
+                    f"The two engines disagreed about the plant itself, not only the disease: the "
+                    f"on-device model answered for {cnn_crop} while the vision model answered for "
+                    f"{cloud_crop}. A disease name taken from the wrong crop would be misleading, so "
+                    f"nothing was saved - retake the photo in good light, close to the affected leaf."
+                )
+            elif forced_unknown and scope_refusal:
                 reason = (
                     f"The AI could not match this plant to the {scope_refusal['crop_count']} crops "
                     f"this app covers"

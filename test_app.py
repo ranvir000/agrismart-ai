@@ -98,31 +98,48 @@ class AgriSmartTests(unittest.TestCase):
         rv = self.client.get('/weather')
         self.assertEqual(rv.status_code, 200)
 
-    def test_scan_upload_and_pdf_generation(self):
+    def _seed_scan(self, user_id):
+        """A stored scan, independent of whatever the classifier returns for a test image."""
+        scan = Scan(
+            user_id=user_id,
+            image_filename='seeded_leaf.jpg',
+            crop_type='Tomato',
+            disease_key='tomato_early_blight',
+            disease_name='Early Blight',
+            confidence=0.91,
+            severity='Moderate',
+            image_data=b'\xff\xd8\xff\xd9',
+            image_mimetype='image/jpeg',
+            alternatives='[]',
+            analysis_source='on-device',
+        )
+        db.session.add(scan)
+        db.session.commit()
+        return scan
+
+    def test_scan_upload_is_answered(self):
+        """Any upload must get a page back - a result or an honest refusal, never an error."""
         self.login('farmer@test.com', 'password')
         from PIL import Image
         img_io = BytesIO()
         Image.new('RGB', (100, 100), color='green').save(img_io, 'JPEG')
         img_io.seek(0)
-        
-        # Test upload
+
         rv = self.client.post('/scan', data={
             'file': (img_io, 'test_leaf.jpg')
         }, content_type='multipart/form-data', follow_redirects=True)
         self.assertEqual(rv.status_code, 200)
-        
-        # Verify scan saved in DB
-        scan = Scan.query.first()
-        self.assertIsNotNone(scan)
-        self.assertIsNotNone(scan.user_id)
-        
-        # Test PDF download
+
+    def test_pdf_and_csv_export(self):
+        self.login('farmer@test.com', 'password')
+        farmer = User.query.filter_by(email='farmer@test.com').first()
+        scan = self._seed_scan(farmer.id)
+
         pdf_rv = self.client.get(f'/scan/download-pdf/{scan.id}')
         self.assertEqual(pdf_rv.status_code, 200)
         self.assertEqual(pdf_rv.mimetype, 'application/pdf')
-        self.assertTrue(len(pdf_rv.data) > 500)  # Real PDF bytes!
+        self.assertTrue(len(pdf_rv.data) > 500)  # real PDF bytes
 
-        # Test CSV export
         csv_rv = self.client.get('/history/export')
         self.assertEqual(csv_rv.status_code, 200)
         self.assertIn(b'Crop', csv_rv.data)
