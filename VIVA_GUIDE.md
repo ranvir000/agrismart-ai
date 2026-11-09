@@ -60,7 +60,7 @@ The full-precision PyTorch checkpoint has separate metrics: 98.73% top-1, 99.95%
 
 **Is this a treatment recommendation?** It is a predicted class plus general information stored in the disease library. Severity is a class-level default; the model does not measure the damage in the uploaded photo, and the app does not generate a personalized pesticide prescription.
 
-**What if the internet or external API is unavailable?** The local ONNX classifier can run without Gemini; the cross-check and live weather are unavailable. When no weather key is set, the site uses simulated sample data and labels it accordingly.
+**What if an external API is unavailable?** If the hosted web app is reachable, its server-side ONNX classifier can run without Gemini; the cross-check and live weather are unavailable. If the user's internet connection or the app server is down, this web app cannot be reached for a scan. When no weather key is set, the site uses simulated sample data and labels it accordingly.
 
 ## Do not claim
 

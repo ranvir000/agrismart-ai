@@ -10,7 +10,7 @@
 - Deployment: exported to ONNX and dynamically quantized to int8 (runs on CPU)
 
 ## Data
-- PlantVillage, 38 classes across 14 crops
+- PlantVillage, 38 crop-condition labels (including healthy classes) across 14 crops
 - Augmentation: random resized crop, flips, rotation, colour jitter
 
 ## Evaluation results (held-out PlantVillage test split, 2,207 images)

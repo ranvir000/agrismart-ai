@@ -232,7 +232,7 @@ Figures/artifacts that already exist in the repo and may be embedded:
 3. 38 classes only; no nutrient deficiency, pest damage, or non-leaf symptoms.
 4. Fine-grained confusion within tomato and corn classes (see 6.3).
 5. The Gemini cross-check needs an API key and internet; without it the closed-set CNN runs alone and cannot reliably detect unsupported inputs.
-6. No offline mobile app yet — the model is phone-sized but is not packaged for Android/iOS.
+6. No Android/iOS app, on-device mobile packaging, or mobile latency/resource evaluation is included.
 
 **Future work**
 1. Fine-tune on field images (PlantDoc, a real field dataset) and re-run the calibration/threshold sweep — the obvious next experiment.
@@ -247,7 +247,7 @@ Figures/artifacts that already exist in the repo and may be embedded:
 
 **What the project is:** "I used the PlantVillage dataset of about 54,000 controlled leaf photos, covering 38 crop-condition labels across 14 crops. I fine-tuned an ImageNet-pretrained MobileNetV2, exported and quantized it to ONNX for CPU inference, and built a Flask app around it. The app returns a class score and links to general reference information; it is not a field-validated diagnosis or individual treatment prescription."
 
-**How the model learns (the analogy that works):** "Think of the network as someone learning to recognise diseases from flashcards. At first they only know general shapes — edges, colours, textures — because they were already trained on a million everyday photos. I freeze that general knowledge, teach them the 38 disease names on top, then let them adjust the finer detail-detecting layers slightly. That's transfer learning: teach the specialist last, not first."
+**How the model learns (the analogy that works):** "Think of the network as someone learning crop conditions from flashcards. At first they only know general shapes — edges, colours, textures — because they were already trained on a million everyday photos. I freeze that general knowledge, teach them the 38 crop-condition labels (including healthy classes) on top, then let them adjust the finer detail-detecting layers slightly. That's transfer learning: teach the specialist last, not first."
 
 **Why a confidence number matters:** "The classifier returns scores over its 38 known labels. On the 2,207-image held-out PlantVillage test split, the deployed model was correct for 100% of the accepted examples above 0.85, but that covered only 63.25% of the split. Below 0.60 the app refuses a label. These are in-scope benchmark results, not a guarantee for field photos or unknown crops."
 
@@ -261,15 +261,15 @@ Figures/artifacts that already exist in the repo and may be embedded:
 
 ## 12. Likely viva questions with good answers
 
-- *Why MobileNetV2 and not ResNet-50?* — Depthwise-separable convolutions: ~3.4M parameters vs 25M, CPU-friendly, and 98.7% is already near the ceiling for this dataset; a bigger model would not raise accuracy, only hosting cost.
+- *Why MobileNetV2 and not ResNet-50?* — MobileNetV2 is a compact architecture suited to the project's CPU-inference goal. I did not train or benchmark a ResNet-50 here, so I cannot claim it would be more accurate or quantify a speed/cost advantage from this project.
 - *Why 224×224?* — Native MobileNetV2 input, matching pretrained normalisation; enough detail for lesion texture.
-- *Why label smoothing?* — Prevents the network becoming overconfident, which improves both calibration and generalisation; directly relevant because the app's decision rule depends on confidence.
+- *Why label smoothing?* — It can discourage overly sharp logits as a regularisation technique. Calibration is still imperfect: the deployed artifact's measured ECE is 0.1426 on the in-scope test split.
 - *Why two-phase training?* — Fine-tuning everything from epoch 1 destroys pretrained features with large gradients; freezing first lets the new head settle.
-- *What does int8 quantization do?* — Stores weights in 8-bit integers instead of 32-bit floats: ~4× smaller, faster CPU inference; here it costs 1% top-1.
+- *What does int8 quantization do?* — It uses lower-precision weights for deployment and can reduce model size or compute. This repository does not include a measured file-size or CPU-latency comparison; the observed top-1 change is 1.00 percentage point (98.73% to 97.73%).
 - *Isn't 98% too good?* — It is a high score on a controlled held-out PlantVillage split. The running website uses the quantized artifact, whose measured top-1 is 97.73%. It is not evidence of similar performance on field photos.
 - *What is ECE?* — Expected Calibration Error: group predictions into confidence bins and compute the weighted gap between average score and accuracy. The deployed model's ECE is 0.1426 on the in-scope test split; this does not establish field calibration.
 - *How do you stop it naming a disease for a rice leaf?* — A score below 0.60 is rejected, and when Gemini is configured its explicit out-of-scope verdict vetoes the CNN label. But the CNN is closed-set; without Gemini, it can still assign a known class to an unsupported leaf. We have not validated OOD rejection.
-- *What happens if the internet is down?* — The CNN is fully local (ONNX, CPU), so the core diagnosis still works; only the cross-check and weather widget degrade.
+- *What happens if an external API is unavailable?* — If the web app itself is still reachable, its server-side ONNX model can run without Gemini; the Gemini cross-check and live weather are unavailable. If the user's internet connection or the app server is down, this web app cannot be reached for a scan.
 
 ---
 
