@@ -5,15 +5,18 @@
 <div class="page-header">
     <div>
         <h1 class="page-title">🌤️ Weather Advisory</h1>
-        <p class="page-subtitle">Live 5-day forecast and crop-specific recommendations for {{ weather.city }}</p>
+        <p class="page-subtitle">
+            {% if weather.source == 'live' %}Live 5-day forecast{% else %}Sample forecast — live weather is not configured{% endif %}
+            with simple general advisory rules for {{ weather.city }} (not a validated crop-risk model)
+        </p>
     </div>
 </div>
 
-<!-- ── Current Conditions ─────────────────────────────────── -->
+<!-- ── Near-term forecast conditions ───────────────────────── -->
 <div class="grid-2" style="margin-bottom:1.5rem;align-items:start;">
     <div class="card">
         <div class="card-header">
-            <h2 class="card-title"><i class="fas fa-map-marker-alt" style="color:var(--accent);margin-right:.4rem;"></i> Current Conditions</h2>
+            <h2 class="card-title"><i class="fas fa-map-marker-alt" style="color:var(--accent);margin-right:.4rem;"></i> Near-term Forecast Conditions</h2>
         </div>
         <div style="display:flex;align-items:center;gap:1.5rem;margin-bottom:1.5rem;">
             <div>
@@ -28,7 +31,7 @@
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
             <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:.75rem;text-align:center;">
                 <div style="font-size:1.2rem;font-weight:700;">{{ weather.current_humidity }}%</div>
-                <div style="font-size:.78rem;color:var(--text-muted);">💧 Humidity</div>
+                <div style="font-size:.78rem;color:var(--text-muted);">💧 Forecast humidity</div>
             </div>
             <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:.75rem;text-align:center;">
                 <div style="font-size:1.2rem;font-weight:700;">{{ weather.forecasts[0].wind if weather.forecasts else '—' }} km/h</div>
@@ -40,7 +43,7 @@
     <!-- Advisories -->
     <div class="card">
         <div class="card-header">
-            <h2 class="card-title"><i class="fas fa-lightbulb" style="color:var(--accent);margin-right:.4rem;"></i> Crop Advisories</h2>
+            <h2 class="card-title"><i class="fas fa-lightbulb" style="color:var(--accent);margin-right:.4rem;"></i> General Forecast Advisories</h2>
         </div>
         {% for adv in advisories %}
         <div class="advisory-card">
@@ -83,8 +86,9 @@
 <!-- ── Disease Risk by Condition ──────────────────────────── -->
 <div class="card" style="margin-top:1.5rem;">
     <div class="card-header">
-        <h2 class="card-title"><i class="fas fa-virus" style="color:var(--danger);margin-right:.4rem;"></i> Weather-Disease Risk Guide</h2>
+        <h2 class="card-title"><i class="fas fa-virus" style="color:var(--danger);margin-right:.4rem;"></i> General Weather-Disease Risk Reference</h2>
     </div>
+    <p style="font-size:.8rem;color:var(--text-muted);margin:0 0 1rem;">Educational examples only; this page does not calculate a validated disease risk for your field or crop.</p>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1rem;">
         <div style="background:rgba(41,128,185,0.08);border:1px solid rgba(41,128,185,0.2);border-radius:8px;padding:1rem;">
             <strong style="color:#5dade2;"><i class="fas fa-tint"></i> High Humidity (&gt;80%)</strong>

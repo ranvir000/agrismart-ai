@@ -71,7 +71,7 @@
                                     </button>
                                 </form>
                                 <form method="POST" action="{{ url_for('admin.delete_user', user_id=user.id) }}"
-                                      onsubmit="return confirm('Delete user {{ user.username }} and all their data?');">
+                                      onsubmit="return confirm('Delete this user and all their data?');">
                                     <button type="submit" class="btn btn-danger btn-sm">
                                         <i class="fas fa-trash"></i>
                                     </button>
@@ -117,13 +117,14 @@
         <div class="card-header"><h2 class="card-title"><i class="fas fa-envelope" style="margin-right:.4rem;color:var(--primary-light);"></i> Contact Messages</h2></div>
         <div class="table-wrap">
             <table>
-                <thead><tr><th>Name</th><th>Email</th><th>Subject</th><th>Date</th><th>Status</th><th>Action</th></tr></thead>
+                <thead><tr><th>Name</th><th>Email</th><th>Subject</th><th>Message</th><th>Date</th><th>Status</th><th>Action</th></tr></thead>
                 <tbody>
                     {% for msg in messages %}
                     <tr>
                         <td>{{ msg.name }}</td>
                         <td style="color:var(--text-muted);">{{ msg.email }}</td>
                         <td>{{ msg.subject }}</td>
+                        <td style="max-width:320px;overflow-wrap:anywhere;"><details><summary>Read message</summary><div style="white-space:pre-wrap;margin-top:.5rem;">{{ msg.message }}</div></details></td>
                         <td style="font-size:.82rem;color:var(--text-muted);">{{ msg.timestamp.strftime('%b %d') }}</td>
                         <td><span class="badge {% if msg.is_read %}badge-success{% else %}badge-warning{% endif %}">{{ 'Read' if msg.is_read else 'Unread' }}</span></td>
                         <td>
@@ -135,7 +136,7 @@
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="6" style="text-align:center;color:var(--text-muted);">No messages yet.</td></tr>
+                    <tr><td colspan="7" style="text-align:center;color:var(--text-muted);">No messages yet.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

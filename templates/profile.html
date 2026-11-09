@@ -97,25 +97,23 @@
             <div class="card-header">
                 <h2 class="card-title"><i class="fas fa-chart-bar" style="color:var(--primary-light);margin-right:.4rem;"></i> My Stats</h2>
             </div>
-            {% set total = current_user.scans | length %}
-            {% set healthy = current_user.scans | selectattr('severity', 'equalto', 'Healthy') | list | length %}
             <div style="display:flex;flex-direction:column;gap:.75rem;">
                 <div style="display:flex;justify-content:space-between;">
                     <span style="color:var(--text-muted);font-size:.9rem;">Total Scans</span>
-                    <strong>{{ total }}</strong>
+                    <strong>{{ total_scans }}</strong>
                 </div>
                 <div style="display:flex;justify-content:space-between;">
                     <span style="color:var(--text-muted);font-size:.9rem;">Healthy Results</span>
-                    <strong style="color:var(--success);">{{ healthy }}</strong>
+                    <strong style="color:var(--success);">{{ healthy_scans }}</strong>
                 </div>
                 <div style="display:flex;justify-content:space-between;">
                     <span style="color:var(--text-muted);font-size:.9rem;">Diseases Found</span>
-                    <strong style="color:var(--warning);">{{ total - healthy }}</strong>
+                    <strong style="color:var(--warning);">{{ total_scans - healthy_scans }}</strong>
                 </div>
-                {% if total > 0 %}
+                {% if total_scans > 0 %}
                 <div style="display:flex;justify-content:space-between;">
                     <span style="color:var(--text-muted);font-size:.9rem;">Health Rate</span>
-                    <strong>{{ ((healthy / total) * 100)|round(0)|int }}%</strong>
+                    <strong>{{ ((healthy_scans / total_scans) * 100)|round(0)|int }}%</strong>
                 </div>
                 {% endif %}
             </div>

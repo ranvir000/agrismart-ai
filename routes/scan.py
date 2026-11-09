@@ -8,7 +8,7 @@ from flask_login import login_required, current_user
 from database.db import db, Scan
 from models.model_loader import (
     analyze_image, allowed_file, normalize_upload, ImageFormatError,
-    SUPPORTED_FORMATS_LABEL, UPLOAD_FOLDER,
+    SUPPORTED_FORMATS_LABEL, LEGACY_UPLOAD_FOLDER,
 )
 from models.vision_analyzer import analyze_with_vision, is_available, last_error
 from models.disease_info import get_disease
@@ -19,10 +19,8 @@ scan_bp = Blueprint('scan', __name__)
 # disease it is not confident about. Override per deployment with MIN_CONFIDENCE.
 MIN_CONFIDENCE = float(os.environ.get('MIN_CONFIDENCE', '0.60'))
 
-# The trained CNN is only allowed to give the final answer above this confidence.
-# Measured on the deployed quantized model: at >=0.85 it is ~100% correct on
-# PlantVillage-style photos, while on real-world / internet photos it is only ~26%
-# correct overall - so a merely "fairly sure" CNN guess is not shown as fact.
+# Display guidance only: >=0.85 was 100% accurate on the held-out in-scope test
+# split, but this is not a calibrated probability or a field/OOD guarantee.
 CNN_TRUST_CONFIDENCE = float(os.environ.get('CNN_TRUST_CONFIDENCE', '0.85'))
 
 
@@ -67,6 +65,31 @@ def _engine_crop(prediction):
     info = get_disease(prediction.get('disease_key')) or {}
     return (info.get('crop') or '').strip()
 
+
+def _unknown_candidates(cnn, cloud):
+    """Return a small, de-duplicated list of guesses clearly labelled as unreliable."""
+    candidates = []
+    seen = set()
+    for prediction in (cnn, cloud):
+        if not prediction or not prediction.get('ok'):
+            continue
+        options = [prediction] + list(prediction.get('alternatives') or [])
+        for option in options:
+            key = option.get('key') or option.get('disease_key')
+            if not key or key in seen:
+                continue
+            info = get_disease(key) or {}
+            candidates.append({
+                'name': option.get('name') or info.get('name') or key,
+                'crop': info.get('crop', ''),
+                'confidence': float(option.get('confidence') or 0),
+            })
+            seen.add(key)
+            if len(candidates) == 3:
+                return candidates
+    return candidates
+
+
 @scan_bp.route('/scan', methods=['GET', 'POST'])
 @login_required
 def scan_crop():
@@ -93,42 +116,64 @@ def scan_crop():
                 return redirect(request.url)
             image_mimetype = 'image/jpeg'
             
-            # 1) The trained PlantVillage CNN answers on its own only when it is very
-            #    confident (see CNN_TRUST_CONFIDENCE) - the range where it is measured
-            #    to be ~100% correct.
-            # 2) Gemini Vision answers everything else, because the CNN drops to ~26%
-            #    accuracy on real-world / internet photos even when it looks sure.
-            cnn = analyze_image(filepath)
-            cnn_ok = bool(cnn and cnn.get('ok'))
-            cnn_trusted = cnn_ok and cnn['confidence'] >= CNN_TRUST_CONFIDENCE
+            # The CNN is the local classifier. Gemini is an optional cross-check; any
+            # explicit out-of-scope verdict from it takes precedence over a closed-set
+            # CNN guess, which cannot independently prove that an input is in scope.
+            cnn = None
+            cloud = None
+            try:
+                cnn = analyze_image(filepath)
+            except Exception:
+                current_app.logger.exception('On-device crop analysis failed.')
+            try:
+                cloud = analyze_with_vision(filepath)
+            except Exception:
+                current_app.logger.exception('Vision cross-check failed.')
+            finally:
+                # Images are stored in the database after a successful scan. Do not
+                # leave the normalized upload in a public static directory.
+                try:
+                    os.remove(filepath)
+                except OSError:
+                    pass
 
-            cloud = analyze_with_vision(filepath)
+            cnn_ok = bool(cnn and cnn.get('ok'))
             cloud_ok = bool(cloud and cloud.get('ok'))
 
             # Keep both raw answers, whatever the app decides to show as its answer.
             comparison = build_comparison(cnn, cloud)
-
-            # The vision model refuses to name anything when the plant itself is not one
-            # of the supported crops; that verdict must not be overruled by a merely
-            # "fairly sure" on-device guess, or an out-of-library leaf (e.g. rice) gets a
-            # confidently wrong library name.
             scope_refusal = cloud if (cloud and cloud.get('out_of_scope')) else None
-            forced_unknown = bool(scope_refusal) and not cnn_trusted
-
-            # If the two engines name diseases of different crops, one of them is reading
-            # the wrong plant and we have no way to tell which. A confident-looking name
-            # from the wrong crop (a potato leaf reported as a tomato disease) is worse
-            # than no answer, so this photo goes to the review page with both opinions
-            # shown instead of being saved as a diagnosis.
             cnn_crop = _engine_crop(cnn)
             cloud_crop = _engine_crop(cloud)
             crop_conflict = bool(cnn_crop and cloud_crop and cnn_crop.lower() != cloud_crop.lower())
-            if crop_conflict:
-                forced_unknown = True
 
-            # The trained model is always the headline answer: this app exists to show
-            # what our own CNN predicts, even when it is unsure. Gemini is only used when
-            # the CNN produced nothing at all, and stays visible as a cross-check below.
+            preview_b64 = base64.b64encode(image_bytes).decode('ascii')
+            if scope_refusal or crop_conflict:
+                if crop_conflict:
+                    reason = (
+                        f'The two engines disagreed about the plant itself: the on-device model '
+                        f'answered for {cnn_crop} while the vision model answered for {cloud_crop}. '
+                        'No disease name was saved because the crop could be wrong.'
+                    )
+                else:
+                    reason = (
+                        f"The AI cross-check did not match this plant to the {scope_refusal.get('crop_count', 14)} "
+                        'crops this app covers, so no disease name was saved.'
+                    )
+                    if scope_refusal.get('note'):
+                        reason += f" It described the image as: {scope_refusal['note']}"
+                return render_template(
+                    'scan_unknown.html',
+                    preview=f'data:{image_mimetype};base64,{preview_b64}',
+                    candidates=_unknown_candidates(cnn, cloud),
+                    threshold=MIN_CONFIDENCE,
+                    source='Gemini vision' if scope_refusal else 'model comparison',
+                    reason=reason,
+                    comparison=comparison,
+                )
+
+            # Keep the trained local model as the headline answer whenever it returns a
+            # supported-class prediction; the optional vision result remains a comparison.
             if cnn_ok:
                 result = cnn
             elif cloud_ok:
@@ -162,25 +207,9 @@ def scan_crop():
             severity = result['severity']
             disease_info = get_disease(disease_key)
 
-            reason = None
-            if crop_conflict:
-                reason = (
-                    f"The two engines disagreed about the plant itself, not only the disease: the "
-                    f"on-device model answered for {cnn_crop} while the vision model answered for "
-                    f"{cloud_crop}. A disease name taken from the wrong crop would be misleading, so "
-                    f"nothing was saved - retake the photo in good light, close to the affected leaf."
-                )
-            elif forced_unknown and scope_refusal:
-                reason = (
-                    f"The AI could not match this plant to the {scope_refusal['crop_count']} crops "
-                    f"this app covers"
-                    + (f" (it saw: {scope_refusal['note']})" if scope_refusal.get('note') else '')
-                    + ", so no disease name was guessed."
-                )
-
             # Honest rejection: a weak best guess - or a photo of a plant outside the
             # library - means "I do not know this one", not a made-up disease name.
-            if confidence < MIN_CONFIDENCE or forced_unknown:
+            if confidence < MIN_CONFIDENCE:
                 candidates = [{
                     'name': disease_info['name'],
                     'crop': disease_info['crop'],
@@ -199,20 +228,13 @@ def scan_crop():
                         'confidence': alt.get('confidence', 0),
                     })
 
-                with open(filepath, 'rb') as preview_file:
-                    preview_b64 = base64.b64encode(preview_file.read()).decode('ascii')
-                try:
-                    os.remove(filepath)
-                except OSError:
-                    pass
-
                 return render_template(
                     'scan_unknown.html',
                     preview=f"data:{image_mimetype};base64,{preview_b64}",
                     candidates=candidates[:3],
                     threshold=MIN_CONFIDENCE,
                     source=result.get('source'),
-                    reason=reason,
+                    reason=None,
                     comparison=comparison,
                 )
             
@@ -240,7 +262,7 @@ def scan_crop():
             flash(f'Allowed image types are -> {SUPPORTED_FORMATS_LABEL}', 'danger')
             return redirect(request.url)
 
-    return render_template('scan.html')
+    return render_template('scan.html', vision_available=is_available())
 
 @scan_bp.route('/scan/image/<int:scan_id>')
 @login_required
@@ -253,7 +275,7 @@ def scan_image(scan_id):
         return Response(scan.image_data, mimetype=scan.image_mimetype or 'image/jpeg')
 
     # Scans saved before images were kept in the database
-    return send_from_directory(UPLOAD_FOLDER, scan.image_filename)
+    return send_from_directory(LEGACY_UPLOAD_FOLDER, scan.image_filename)
 
 
 @scan_bp.route('/scan/results/<int:scan_id>')
@@ -310,14 +332,18 @@ def download_pdf(scan_id):
     pdf.set_font("helvetica", size=11)
     pdf.cell(0, 8, text=clean_text(f"Date: {scan.timestamp.strftime('%Y-%m-%d %H:%M')}"), new_x="LMARGIN", new_y="NEXT")
     pdf.cell(0, 8, text=clean_text(f"Crop: {scan.crop_type}"), new_x="LMARGIN", new_y="NEXT")
-    pdf.cell(0, 8, text=clean_text(f"Detected Disease: {scan.disease_name}"), new_x="LMARGIN", new_y="NEXT")
-    pdf.cell(0, 8, text=clean_text(f"Severity: {scan.severity}"), new_x="LMARGIN", new_y="NEXT")
-    pdf.cell(0, 8, text=clean_text(f"Confidence: {scan.confidence * 100:.1f}%"), new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 8, text=clean_text(f"Model-predicted class: {scan.disease_name}"), new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 8, text=clean_text(f"Class-level severity default (not image-measured): {scan.severity}"), new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 8, text=clean_text(f"Model score (not a calibrated field probability): {scan.confidence * 100:.1f}%"), new_x="LMARGIN", new_y="NEXT")
     pdf.ln(5)
     
     pdf.set_font("helvetica", style='B', size=12)
-    pdf.cell(0, 8, text="Recommendations & Treatment Plan:", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 8, text="General Reference Guidance:", new_x="LMARGIN", new_y="NEXT")
     pdf.set_font("helvetica", size=10)
+    pdf.multi_cell(0, 7, text=clean_text(
+        "Educational class-level information only. Confirm with a local agricultural expert "
+        "and follow product labels; this is not an individualized prescription."
+    ), new_x="LMARGIN", new_y="NEXT")
     for t in disease_info.get('treatment', []):
         pdf.multi_cell(0, 7, text=clean_text(f"- {t}"), new_x="LMARGIN", new_y="NEXT")
         

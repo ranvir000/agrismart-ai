@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for
 from flask_login import login_required, current_user
 from werkzeug.security import check_password_hash, generate_password_hash
-from database.db import db, User
+from database.db import db, User, Scan
 
 profile_bp = Blueprint('profile', __name__)
 
@@ -46,4 +46,8 @@ def profile_page():
         db.session.commit()
         return redirect(url_for('profile.profile_page'))
         
-    return render_template('profile.html')
+    total_scans = Scan.query.filter_by(user_id=current_user.id).count()
+    healthy_scans = Scan.query.filter_by(user_id=current_user.id, severity='Healthy').count()
+    return render_template(
+        'profile.html', total_scans=total_scans, healthy_scans=healthy_scans
+    )

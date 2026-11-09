@@ -31,10 +31,11 @@
             <span class="badge {% if scan.severity == 'Healthy' %}badge-success{% elif scan.severity == 'Mild' %}badge-warning{% elif scan.severity == 'Moderate' %}badge-orange{% else %}badge-danger{% endif %}">
                 {{ scan.severity }} Severity
             </span>
+            <div style="margin-top:.35rem;font-size:.74rem;color:var(--text-muted);">Class-level default label; severity of leaf damage is not measured from the photo.</div>
         </div>
         <div class="confidence-bar" style="margin-top:.75rem;">
             <div style="display:flex;justify-content:space-between;font-size:.78rem;color:var(--text-muted);margin-bottom:.3rem;">
-                <span>On-device model confidence</span>
+                <span>{% if scan.analysis_source == 'vision' %}Vision-model score{% else %}On-device model score{% endif %} (not a calibrated field probability)</span>
                 <strong style="color:var(--text);">{{ (scan.confidence * 100) | round(1) }}%</strong>
             </div>
             <div class="confidence-track">
@@ -56,12 +57,16 @@
             {% endif %}
             <div style="margin-top:.6rem;font-size:.78rem;color:var(--text-muted);">
                 <i class="fas fa-microchip" style="margin-right:.3rem;"></i>
+                {% if scan.analysis_source == 'vision' %}
+                <strong>This result came from the vision model.</strong> The local model did not return a usable class.
+                {% elif comparison and comparison.vision.status != 'unavailable' %}
                 <strong>The trained on-device model's own answer.</strong>
-                {% if scan.confidence < trust_threshold %}
-                It was not fully certain, so the Gemini vision model's answer for the same photo
-                is shown next to it below &mdash; neither number is edited.
+                {% if scan.confidence < trust_threshold %}It was below the display-guidance threshold; the separate Gemini answer is shown below. Neither score is edited.
                 {% else %}
-                The Gemini vision model's answer for the same photo is shown below for comparison.
+                The separate Gemini answer for the same photo is shown below for comparison.
+                {% endif %}
+                {% else %}
+                <strong>The trained on-device model's own answer.</strong> A Gemini cross-check was unavailable for this scan.
                 {% endif %}
             </div>
         </div>
@@ -80,7 +85,7 @@
         <!-- Description -->
         <div class="card" style="margin-bottom:1rem;">
             <div class="card-header">
-                <h2 class="card-title"><i class="fas fa-info-circle" style="color:var(--primary-light);margin-right:.4rem;"></i> About This Disease</h2>
+                <h2 class="card-title"><i class="fas fa-info-circle" style="color:var(--primary-light);margin-right:.4rem;"></i> About This Predicted Class</h2>
             </div>
             <p style="color:var(--text-muted);font-size:.9rem;line-height:1.7;">{{ disease_info.description }}</p>
         </div>
@@ -88,8 +93,9 @@
         <!-- Symptoms -->
         <div class="card" style="margin-bottom:1rem;">
             <div class="card-header">
-                <h2 class="card-title"><i class="fas fa-search" style="color:var(--warning);margin-right:.4rem;"></i> Symptoms Detected</h2>
+                <h2 class="card-title"><i class="fas fa-search" style="color:var(--warning);margin-right:.4rem;"></i> Typical Symptoms for This Class</h2>
             </div>
+            <p style="font-size:.8rem;color:var(--text-muted);margin-bottom:.8rem;">These symptoms are reference information; the model does not verify or locate each symptom in the uploaded photo.</p>
             <ul style="list-style:none;display:flex;flex-direction:column;gap:.5rem;">
                 {% for s in disease_info.symptoms %}
                 <li style="display:flex;gap:.6rem;align-items:flex-start;font-size:.88rem;">
@@ -103,7 +109,7 @@
         <!-- Organic Treatment -->
         <div class="card">
             <div class="card-header">
-                <h2 class="card-title"><i class="fas fa-leaf" style="color:var(--success);margin-right:.4rem;"></i> Organic Remedies</h2>
+                <h2 class="card-title"><i class="fas fa-leaf" style="color:var(--success);margin-right:.4rem;"></i> Additional Management References</h2>
             </div>
             <ul style="list-style:none;display:flex;flex-direction:column;gap:.5rem;">
                 {% for t in disease_info.organic_treatment %}
@@ -121,12 +127,13 @@
         <!-- Treatment -->
         <div class="card" style="margin-bottom:1rem;">
             <div class="card-header">
-                <h2 class="card-title"><i class="fas fa-prescription-bottle" style="color:var(--danger);margin-right:.4rem;"></i> Treatment Plan</h2>
+                <h2 class="card-title"><i class="fas fa-prescription-bottle" style="color:var(--danger);margin-right:.4rem;"></i> General Reference Guidance</h2>
             </div>
+            <p style="font-size:.8rem;color:var(--text-muted);line-height:1.6;margin-bottom:.8rem;">These class-level suggestions are educational, not a diagnosis-specific prescription. Confirm with a local agricultural expert and follow product labels before applying any treatment.</p>
             <ul style="list-style:none;display:flex;flex-direction:column;gap:.6rem;">
                 {% for t in disease_info.treatment %}
                 <li style="display:flex;gap:.6rem;align-items:flex-start;font-size:.88rem;">
-                    <span style="background:var(--danger);color:#fff;border-radius:4px;padding:.1rem .4rem;font-size:.7rem;font-weight:700;flex-shrink:0;margin-top:.15rem;">RX</span>
+                    <span style="background:var(--info);color:#fff;border-radius:4px;padding:.1rem .4rem;font-size:.7rem;font-weight:700;flex-shrink:0;margin-top:.15rem;">REF</span>
                     {{ t }}
                 </li>
                 {% endfor %}

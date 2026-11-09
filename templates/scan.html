@@ -38,7 +38,12 @@
             • Ensure the affected area is clearly visible<br>
             • Avoid blurry or heavily shadowed images<br>
             • Plain backgrounds give better accuracy<br>
-            <span style="color:var(--accent);margin-top:.35rem;display:inline-block;">Scope: 38 diseases on the 14 crops listed. Any other plant is reported as “outside my scope” rather than guessed.</span>
+            <span style="color:var(--accent);margin-top:.35rem;display:inline-block;">Scope: 38 crop-condition labels, including healthy classes, across the 14 crops listed.</span>
+            {% if vision_available %}
+            <span style="display:block;margin-top:.45rem;">Privacy note: this photo will also be sent to Google Gemini for an external vision cross-check.</span>
+            {% else %}
+            <span style="display:block;margin-top:.45rem;">The optional Gemini comparison is unavailable; the local model is used by itself.</span>
+            {% endif %}
         </div>
     </div>
 
@@ -59,7 +64,7 @@
                 </div>
                 <div style="display:flex;gap:.75rem;align-items:flex-start;">
                     <div style="width:28px;height:28px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;flex-shrink:0;">3</div>
-                    <div><strong>Classifier Head</strong><br><span style="font-size:.82rem;color:var(--text-muted);">Custom linear layer maps to 38 disease classes</span></div>
+                    <div><strong>Classifier Head</strong><br><span style="font-size:.82rem;color:var(--text-muted);">Custom head maps to 38 crop-condition labels, including healthy classes</span></div>
                 </div>
                 <div style="display:flex;gap:.75rem;align-items:flex-start;">
                     <div style="width:28px;height:28px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;flex-shrink:0;color:#111;">4</div>

@@ -32,6 +32,11 @@
             </div>
         </div>
 
+        <div class="card" style="margin-bottom:1.5rem;border-left:4px solid var(--warning);">
+            <strong>Educational reference only.</strong>
+            <span style="color:var(--text-muted);"> These symptoms and management notes are not verified against your plant, and the severity label is a class-level default. Check locally registered products, product labels, and a qualified agricultural adviser before taking action.</span>
+        </div>
+
         <div class="grid-2">
             <div>
                 <div class="card" style="margin-bottom:1rem;">
@@ -49,7 +54,7 @@
                     </ul>
                 </div>
                 <div class="card">
-                    <div class="card-header"><h2 class="card-title"><i class="fas fa-leaf" style="color:var(--success);margin-right:.4rem;"></i> Organic Remedies</h2></div>
+                    <div class="card-header"><h2 class="card-title"><i class="fas fa-leaf" style="color:var(--success);margin-right:.4rem;"></i> Additional Management References</h2></div>
                     <ul style="list-style:none;display:flex;flex-direction:column;gap:.5rem;">
                         {% for t in disease.organic_treatment %}
                         <li style="display:flex;gap:.6rem;font-size:.88rem;">
@@ -61,11 +66,12 @@
             </div>
             <div>
                 <div class="card" style="margin-bottom:1rem;">
-                    <div class="card-header"><h2 class="card-title"><i class="fas fa-prescription-bottle" style="color:var(--danger);margin-right:.4rem;"></i> Treatment</h2></div>
+                    <div class="card-header"><h2 class="card-title"><i class="fas fa-prescription-bottle" style="color:var(--danger);margin-right:.4rem;"></i> General Treatment References</h2></div>
+                    <p style="font-size:.8rem;color:var(--text-muted);margin:0 0 .8rem;">Not a prescription or an instruction to apply a product. Verify diagnosis and local registration first.</p>
                     <ul style="list-style:none;display:flex;flex-direction:column;gap:.6rem;">
                         {% for t in disease.treatment %}
                         <li style="display:flex;gap:.6rem;font-size:.88rem;">
-                            <span style="background:var(--danger);color:#fff;border-radius:4px;padding:.1rem .4rem;font-size:.7rem;font-weight:700;flex-shrink:0;margin-top:.15rem;">RX</span>
+                            <span style="background:var(--info);color:#fff;border-radius:4px;padding:.1rem .4rem;font-size:.7rem;font-weight:700;flex-shrink:0;margin-top:.15rem;">REF</span>
                             {{ t }}
                         </li>
                         {% endfor %}

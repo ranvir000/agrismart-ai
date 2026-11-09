@@ -1,3 +1,4 @@
+import logging
 import os
 from flask import Flask, render_template, abort, request as flask_request
 from flask_login import LoginManager
@@ -11,8 +12,17 @@ from routes.analytics import analytics_bp
 from routes.profile import profile_bp
 from routes.diseases import diseases_bp
 from routes.admin import admin_bp
-from werkzeug.security import generate_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 from datetime import datetime, timedelta
+
+def normalize_database_url(database_url):
+    """Use psycopg v3 for Render/PostgreSQL URLs, matching requirements.txt."""
+    if database_url.startswith('postgres://'):
+        return database_url.replace('postgres://', 'postgresql+psycopg://', 1)
+    if database_url.startswith('postgresql://'):
+        return database_url.replace('postgresql://', 'postgresql+psycopg://', 1)
+    return database_url
+
 
 def ensure_schema():
     """Add columns introduced after a database was first created.
@@ -46,13 +56,17 @@ def create_app(test_config=None):
     app = Flask(__name__)
     
     if test_config is None:
-        app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-agrismart-secret-key')
+        secret_key = os.environ.get('SECRET_KEY')
+        is_production = (os.environ.get('FLASK_ENV', '').lower() == 'production'
+                         or bool(os.environ.get('RENDER')))
+        if is_production and not secret_key:
+            raise RuntimeError('SECRET_KEY must be configured in production.')
+        app.config['SECRET_KEY'] = secret_key or os.urandom(32)
 
         # A persistent Postgres database is used when DATABASE_URL is set (Render),
         # otherwise we fall back to a local SQLite file.
         database_url = os.environ.get('DATABASE_URL', '').strip()
-        if database_url.startswith('postgres://'):
-            database_url = database_url.replace('postgres://', 'postgresql://', 1)
+        database_url = normalize_database_url(database_url)
         app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///agrismart.db'
         if database_url:
             app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
@@ -71,8 +85,16 @@ def create_app(test_config=None):
     app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=1)
     app.config['REMEMBER_COOKIE_HTTPONLY'] = True
     app.config['REMEMBER_COOKIE_SAMESITE'] = 'Lax'
+    app.config.setdefault(
+        'REMEMBER_COOKIE_SECURE',
+        (os.environ.get('FLASK_ENV', '').lower() == 'production' or bool(os.environ.get('RENDER')))
+    )
     app.config['SESSION_COOKIE_HTTPONLY'] = True
     app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+    app.config.setdefault(
+        'SESSION_COOKIE_SECURE',
+        (os.environ.get('FLASK_ENV', '').lower() == 'production' or bool(os.environ.get('RENDER')))
+    )
     # Max upload size: 16MB for large phone photos and TIFF/BMP scans. Uploads are
     # re-encoded to a compact JPEG before storage, so this does not bloat the DB.
     app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
@@ -92,6 +114,14 @@ def create_app(test_config=None):
         if origin_host and origin_host != flask_request.host:
             abort(403)
         return None
+
+    @app.before_request
+    def block_public_legacy_uploads():
+        # Old versions wrote user photos under static/uploads, where Flask's static
+        # route would expose them without authentication. Keep files for legacy DB
+        # records, but serve them only through the authenticated scan-image endpoint.
+        if flask_request.path.startswith('/static/uploads/'):
+            abort(404)
 
     db.init_app(app)
     
@@ -146,9 +176,30 @@ def create_app(test_config=None):
 
 def seed_admin():
     admin_email = os.environ.get('ADMIN_EMAIL', 'admin@agrismart.com')
-    admin_password = os.environ.get('ADMIN_PASSWORD', 'admin123')
+    admin_password = os.environ.get('ADMIN_PASSWORD')
     admin_username = os.environ.get('ADMIN_USERNAME', 'admin')
-    if not User.query.filter_by(email=admin_email).first():
+    existing_admin = User.query.filter_by(email=admin_email).first()
+    if admin_password == 'admin123':
+        raise RuntimeError('ADMIN_PASSWORD must not use the public legacy default.')
+    if not admin_password:
+        if existing_admin and check_password_hash(existing_admin.password_hash, 'admin123'):
+            raise RuntimeError(
+                'A legacy administrator still uses the public default password. '
+                'Configure ADMIN_PASSWORD to rotate it before startup.'
+            )
+        logging.getLogger(__name__).warning(
+            'ADMIN_PASSWORD is not configured; skipping administrator bootstrap.'
+        )
+        return
+    if existing_admin:
+        if check_password_hash(existing_admin.password_hash, 'admin123'):
+            existing_admin.password_hash = generate_password_hash(admin_password)
+            db.session.commit()
+            logging.getLogger(__name__).warning(
+                'Rotated a legacy administrator password from the public default.'
+            )
+        return
+    if not existing_admin:
         admin = User(
             username=admin_username,
             email=admin_email,

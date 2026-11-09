@@ -101,9 +101,7 @@ def logout():
 @auth_bp.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
     if request.method == 'POST':
-        email = request.form.get('email', '').strip().lower()
-        # In production: send actual reset email
-        # For demo: always show success message (security best practice)
-        flash('If an account with that email exists, a password reset link has been sent. Please check your inbox.', 'info')
+        # No reset-token or email-delivery workflow is configured in this project.
+        flash('Password recovery is not configured for this demo. Please contact the project administrator.', 'warning')
         return redirect(url_for('auth.login'))
     return render_template('forgot_password.html')

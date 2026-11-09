@@ -9,7 +9,13 @@
         <h2 class="card-title"><i class="fas fa-code-compare" style="color:var(--primary-light);margin-right:.4rem;"></i> Model Comparison</h2>
     </div>
     <p style="font-size:.82rem;color:var(--text-muted);margin:0 0 .9rem;line-height:1.6;">
-        This photo was analysed by both engines. Neither answer was adjusted for this view.
+        {% if local.status != 'unavailable' and vision.status != 'unavailable' %}
+        Both outputs are shown separately; neither score is adjusted or combined.
+        {% elif vision.status == 'unavailable' %}
+        The local output is shown. A Gemini cross-check was unavailable for this photo.
+        {% else %}
+        The vision output is shown. The local classifier did not return a usable result.
+        {% endif %}
     </p>
 
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:.9rem;">
@@ -25,7 +31,7 @@
             <div style="font-size:1.02rem;font-weight:700;line-height:1.3;">{{ engine.data.name }}</div>
             <div style="font-size:.78rem;color:var(--text-muted);margin-top:.15rem;">Crop: {{ engine.data.crop }}</div>
             <div style="display:flex;justify-content:space-between;font-size:.76rem;color:var(--text-muted);margin-top:.7rem;">
-                <span>Confidence</span>
+                <span>Model score (not a calibrated probability)</span>
                 <strong style="color:var(--text);">{{ '%.1f'|format(engine.data.confidence * 100) }}%</strong>
             </div>
             <div style="height:7px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:.3rem;">
@@ -55,10 +61,10 @@
         {% else %}background:rgba(255,255,255,.04);border:1px solid var(--border);{% endif %}">
         {% if comparison.verdict == 'agree' %}
         <i class="fas fa-check-circle" style="color:var(--success);"></i>
-        <strong>Both engines agree</strong> on the same disease.
+        <strong>Both engines returned the same top label</strong> for this photo. Agreement is not proof; verify the result.
         {% elif comparison.verdict == 'differ' %}
         <i class="fas fa-triangle-exclamation" style="color:#f39c12;"></i>
-        <strong>The two engines disagree.</strong> The named result is the one the app trusts &mdash; confirm it against the leaf before acting on it.
+        <strong>The two engines disagree.</strong> Review the photo and seek local guidance before acting.
         {% else %}
         <i class="fas fa-circle-info" style="color:var(--text-muted);"></i>
         Only one engine could answer this photo &mdash; there is nothing to compare.

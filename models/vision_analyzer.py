@@ -23,8 +23,10 @@ import requests
 from models.disease_info import DISEASES
 
 API_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-# Google has been retiring older model names; try the default first, then newer ones.
-CANDIDATE_MODELS = ["gemini-2.5-flash", "gemini-3.6-flash", "gemini-3.7-flash"]
+# Prefer the current stable model; keep one current fallback for deployments with
+# account-specific model availability. See the Google AI Studio model catalog.
+CANDIDATE_MODELS = ["gemini-3.8-flash", "gemini-3.6-flash"]
+GEMINI_TIMEOUT_SECONDS = 20
 
 # The crops the 38 classes cover. A photo of any other plant is out of scope.
 SUPPORTED_CROPS = sorted({d.get("crop") for d in DISEASES.values() if d.get("crop")})
@@ -108,13 +110,16 @@ def _post(model, key, image_path):
         API_URL.format(model=model),
         json=payload,
         headers={"x-goog-api-key": key},
-        timeout=60,
+        timeout=GEMINI_TIMEOUT_SECONDS,
     )
 
 
 def _call_gemini(model, key, image_path):
     """One request. Returns a prediction, or raises VisionError with the reason."""
-    response = _post(model, key, image_path)
+    try:
+        response = _post(model, key, image_path)
+    except requests.RequestException as exc:
+        raise VisionError(f"Network error from {model}: {exc}") from exc
     if response.status_code != 200:
         raise VisionError(
             f"HTTP {response.status_code} from {model}: {response.text[:150]}",

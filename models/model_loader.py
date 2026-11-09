@@ -8,11 +8,16 @@ from PIL import Image
 import numpy as np
 import requests
 import datetime
+import tempfile
 from werkzeug.utils import secure_filename
 import random
 from models.disease_info import DISEASES, DISEASE_KEYS, get_disease
 
-UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'static', 'uploads')
+_APP_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# New, short-lived uploads must not be served by Flask's public /static route.
+UPLOAD_FOLDER = os.path.join(tempfile.gettempdir(), 'agrismart-ai-uploads')
+# Retain this path only for older scans whose image bytes were not yet in the DB.
+LEGACY_UPLOAD_FOLDER = os.path.join(_APP_ROOT, 'static', 'uploads')
 # Every common camera / phone / download format. Uploads are decoded with Pillow
 # and re-saved as a clean RGB JPEG, so a format only has to be *decodable* to be
 # accepted. AVIF/HEIC work when their optional decoders are installed.
@@ -23,6 +28,7 @@ ALLOWED_EXTENSIONS = {
 SUPPORTED_FORMATS_LABEL = 'JPG, PNG, WEBP, GIF, BMP, TIFF, ICO, TGA, PPM, JP2, AVIF, HEIC'
 MAX_STORED_EDGE = 1600
 STORED_JPEG_QUALITY = 88
+MAX_UPLOAD_PIXELS = 24_000_000
 
 # Optional decoders: used automatically when present, never required.
 try:  # pip install pillow-heif
@@ -144,6 +150,10 @@ def normalize_upload(file_storage):
 
     try:
         with Image.open(BytesIO(raw)) as opened:
+            if opened.width * opened.height > MAX_UPLOAD_PIXELS:
+                raise ImageFormatError(
+                    'That image has too many pixels to process safely. Please resize it and try again.'
+                )
             opened.load()
             img = ImageOps.exif_transpose(opened)
             if img.mode in ('RGBA', 'LA', 'PA') or (img.mode == 'P' and 'transparency' in img.info):
@@ -156,6 +166,8 @@ def normalize_upload(file_storage):
             img.thumbnail((MAX_STORED_EDGE, MAX_STORED_EDGE))
             buffer = BytesIO()
             img.save(buffer, format='JPEG', quality=STORED_JPEG_QUALITY, optimize=True)
+    except ImageFormatError:
+        raise
     except Exception:
         raise ImageFormatError(
             f'We could not read that file as an image. Supported types: {SUPPORTED_FORMATS_LABEL}.'
@@ -236,21 +248,47 @@ def get_weather(city="New Delhi"):
 
     if api_key and api_key != 'demo':
         try:
-            url = f"http://api.openweathermap.org/data/2.5/forecast?q={city}&appid={api_key}&units=metric&cnt=5"
+            url = f"https://api.openweathermap.org/data/2.5/forecast?q={city}&appid={api_key}&units=metric&cnt=40"
             resp = requests.get(url, timeout=5)
             if resp.status_code == 200:
                 data = resp.json()
-                forecasts = []
-                for item in data['list'][:5]:
-                    forecasts.append({
-                        'date': datetime.datetime.fromtimestamp(item['dt']).strftime('%a %d %b'),
-                        'temp_max': round(item['main']['temp_max']),
-                        'temp_min': round(item['main']['temp_min']),
-                        'humidity': item['main']['humidity'],
+                city_offset = int(data.get('city', {}).get('timezone', 0))
+                daily = {}
+                for item in data.get('list', []):
+                    local_dt = datetime.datetime.fromtimestamp(
+                        item['dt'], datetime.timezone.utc
+                    ) + datetime.timedelta(seconds=city_offset)
+                    day_key = local_dt.date()
+                    row = daily.setdefault(day_key, {
+                        'date': local_dt.strftime('%a %d %b'),
+                        'temp_max': float('-inf'),
+                        'temp_min': float('inf'),
+                        'humidity_total': 0,
+                        'wind_total': 0,
+                        'samples': 0,
                         'description': item['weather'][0]['description'].title(),
                         'icon': item['weather'][0]['icon'],
-                        'wind': round(item['wind']['speed'] * 3.6),
                     })
+                    row['temp_max'] = max(row['temp_max'], item['main']['temp_max'])
+                    row['temp_min'] = min(row['temp_min'], item['main']['temp_min'])
+                    row['humidity_total'] += item['main']['humidity']
+                    row['wind_total'] += item['wind']['speed'] * 3.6
+                    row['samples'] += 1
+                    if local_dt.hour == 12:
+                        row['description'] = item['weather'][0]['description'].title()
+                        row['icon'] = item['weather'][0]['icon']
+
+                forecasts = [{
+                    'date': row['date'],
+                    'temp_max': round(row['temp_max']),
+                    'temp_min': round(row['temp_min']),
+                    'humidity': round(row['humidity_total'] / row['samples']),
+                    'description': row['description'],
+                    'icon': row['icon'],
+                    'wind': round(row['wind_total'] / row['samples']),
+                } for row in daily.values()][:5]
+                if not forecasts:
+                    raise ValueError('Weather service returned no forecast periods.')
                 return {
                     'city': data['city']['name'],
                     'country': data['city']['country'],
@@ -328,22 +366,22 @@ def get_weather_advisory(weather_data, recent_scans):
         advisories.append({
             'icon': 'fa-thermometer-full',
             'color': '#e74c3c',
-            'title': 'Heat Stress Warning',
-            'message': f'Temperature {temp}°C. Risk of Spider Mites and tip burn. Increase irrigation frequency. Apply kaolin clay to reflect heat.'
+            'title': 'Heat Stress Risk — Forecast',
+            'message': f'The near-term forecast is {temp}°C. Hot conditions may stress crops and affect pest pressure. Check local crop guidance before changing irrigation or applying products.'
         })
     if temp < 12:
         advisories.append({
             'icon': 'fa-snowflake',
             'color': '#3498db',
-            'title': 'Cold Stress Risk',
-            'message': f'Temperature dropping to {temp}°C. Protect sensitive crops with row covers. Risk of frost damage to blossoms.'
+            'title': 'Cold Stress Risk — Forecast',
+            'message': f'The near-term forecast is {temp}°C. Sensitive crops may need protection; check local frost forecasts and crop-specific guidance.'
         })
     if humidity < 40:
         advisories.append({
             'icon': 'fa-sun',
             'color': '#f39c12',
-            'title': 'Low Humidity / Dry Conditions',
-            'message': f'Humidity at {humidity}%. Ideal conditions for Spider Mites and Powdery Mildew. Monitor plants daily. Maintain soil moisture.'
+            'title': 'Low Humidity — Forecast',
+            'message': f'The near-term forecast humidity is {humidity}%. Dry air may stress some crops. Monitor plants and follow local irrigation and pest-management guidance.'
         })
 
     if recent_scans:
@@ -352,8 +390,8 @@ def get_weather_advisory(weather_data, recent_scans):
             advisories.append({
                 'icon': 'fa-exclamation-triangle',
                 'color': '#e74c3c',
-                'title': 'Active Blight — Critical Action Needed',
-                'message': 'Blight detected in your recent scans. In current weather conditions, disease spreads rapidly. Apply fungicide immediately and remove infected plant parts.'
+                'title': 'Recent Blight Labels — Verify',
+                'message': 'One or more recent scans were labelled as blight by the image model. Treat this as an unconfirmed result, inspect the plant, and consult a local agricultural expert before taking action.'
             })
 
     if not advisories:
@@ -361,7 +399,7 @@ def get_weather_advisory(weather_data, recent_scans):
             'icon': 'fa-check-circle',
             'color': '#27ae60',
             'title': 'Conditions Look Favorable',
-            'message': f'Current conditions (Temp: {temp}°C, Humidity: {humidity}%) are within normal range. Continue regular monitoring. Good time for preventive spray.'
+            'message': f'The near-term forecast (Temp: {temp}°C, humidity: {humidity}%) did not trigger this demo’s simple advisory thresholds. Continue monitoring and follow local crop guidance.'
         })
 
     return advisories

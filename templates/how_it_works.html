@@ -16,11 +16,11 @@
                 {% for step in [
                     ('1','Input', 'fas fa-image','#3498db','Your uploaded leaf image (any resolution)'),
                     ('2','Preprocessing','fas fa-sliders-h','#9b59b6','Resize to 224×224, normalize with ImageNet mean=[0.485,0.456,0.406], std=[0.229,0.224,0.225]'),
-                    ('3','MobileNetV2 Backbone','fas fa-brain','#27ae60','Pre-trained convolutional layers extract 1280 spatial feature maps. Weights from ImageNet training — frozen during fine-tuning.'),
+                    ('3','MobileNetV2 Backbone','fas fa-brain','#27ae60','ImageNet-pretrained features are reused. The training script freezes the backbone first, then fine-tunes its last five blocks.'),
                     ('4','Global Average Pooling','fas fa-compress-arrows-alt','#e67e22','Reduces each feature map to a single value → 1280-d feature vector'),
-                    ('5','Dropout (p=0.2)','fas fa-random','#7f8c8d','Regularization to prevent overfitting on the 38-class classifier head'),
-                    ('6','Linear Classifier','fas fa-project-diagram','#e74c3c','Custom linear layer: 1280 → 38 class logits. Fine-tuned on PlantVillage dataset.'),
-                    ('7','Softmax Output','fas fa-chart-bar','#f39c12','38 probability scores (sum=1.0). Highest probability → predicted disease class + confidence score')
+                    ('5','Classifier Head','fas fa-random','#7f8c8d','Dropout(0.3) → Linear(1280→512) → ReLU → Dropout(0.2) → Linear(512→38).'),
+                    ('6','ONNX CPU Inference','fas fa-project-diagram','#e74c3c','The deployed model is a dynamically quantized ONNX artifact and runs on CPU; PyTorch is used for training.'),
+                    ('7','Softmax Output','fas fa-chart-bar','#f39c12','The 38 model scores sum to 1. The highest score is shown with alternatives; it is not a calibrated field probability.')
                 ] %}
                 <div style="display:flex;gap:1rem;align-items:flex-start;padding:.75rem;background:rgba(255,255,255,0.03);border-radius:10px;border:1px solid var(--border);">
                     <div style="width:36px;height:36px;border-radius:8px;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-weight:800;color:{{ step[3] }};flex-shrink:0;font-size:.9rem;">{{ step[0] }}</div>
@@ -47,15 +47,15 @@
                 </div>
                 <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:.9rem;text-align:center;">
                     <div style="font-size:1.5rem;font-weight:800;color:var(--accent);">38</div>
-                    <div style="font-size:.78rem;color:var(--text-muted);">Disease Classes</div>
+                    <div style="font-size:.78rem;color:var(--text-muted);">Condition Labels, Including Healthy</div>
                 </div>
                 <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:.9rem;text-align:center;">
                     <div style="font-size:1.5rem;font-weight:800;color:var(--accent);">14</div>
                     <div style="font-size:.78rem;color:var(--text-muted);">Crop Types</div>
                 </div>
                 <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:.9rem;text-align:center;">
-                    <div style="font-size:1.5rem;font-weight:800;color:var(--accent);">~96%</div>
-                    <div style="font-size:.78rem;color:var(--text-muted);">SOTA Accuracy</div>
+                    <div style="font-size:1.5rem;font-weight:800;color:var(--accent);">97.73%</div>
+                    <div style="font-size:.78rem;color:var(--text-muted);">Quantized ONNX Top-1 on Held-Out Test Set</div>
                 </div>
             </div>
         </div>

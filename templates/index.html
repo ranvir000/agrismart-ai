@@ -16,15 +16,14 @@
         <div class="hero-content">
             <div class="hero-badge">
                 <i class="fas fa-leaf"></i>
-                AI-Powered Agriculture · PlantVillage Dataset · 38 Disease Classes
+                AI-Powered Agriculture · PlantVillage Dataset · 38 Crop-Condition Labels
             </div>
             <h1>
                 Detect Crop Diseases<br>
                 with <span class="highlight">AI Precision</span>
             </h1>
             <p>
-                Upload a photo of any crop leaf — our MobileNetV2 deep learning model 
-                analyzes it in seconds and provides expert treatment recommendations.
+                Upload a photo of one of 14 supported crops. The MobileNetV2 model predicts a crop-condition label and links it to general reference guidance.
             </p>
             <div class="hero-actions">
                 {% if current_user.is_authenticated and not current_user.is_admin %}
@@ -58,7 +57,7 @@
     <div style="margin-top:4rem;display:flex;gap:2rem;justify-content:center;flex-wrap:wrap;position:relative;">
         <div style="text-align:center;">
             <div style="font-size:2rem;font-weight:800;color:var(--accent);">38</div>
-            <div style="font-size:0.82rem;color:var(--text-muted);">Disease Classes</div>
+            <div style="font-size:0.82rem;color:var(--text-muted);">Condition Labels</div>
         </div>
         <div style="width:1px;background:var(--border);"></div>
         <div style="text-align:center;">
@@ -72,8 +71,8 @@
         </div>
         <div style="width:1px;background:var(--border);"></div>
         <div style="text-align:center;">
-            <div style="font-size:2rem;font-weight:800;color:var(--accent);">Real-Time</div>
-            <div style="font-size:0.82rem;color:var(--text-muted);">Weather Advisory</div>
+            <div style="font-size:2rem;font-weight:800;color:var(--accent);">Optional</div>
+            <div style="font-size:0.82rem;color:var(--text-muted);">Weather API</div>
         </div>
     </div>
 </section>
@@ -83,23 +82,23 @@
     <div class="section-center">
         <div class="section-label">What We Offer</div>
         <h2 class="section-title">Everything a Smart Farmer Needs</h2>
-        <p class="section-sub">From instant disease diagnosis to live weather advisories — AgriSmart covers your entire crop health workflow.</p>
+        <p class="section-sub">Explore model predictions, a disease reference library, scan history, and weather advisories when a live weather API is configured.</p>
     </div>
     <div class="features-grid">
         <div class="feature-card">
             <div class="feature-icon"><i class="fas fa-camera"></i></div>
             <h3>Instant Disease Detection</h3>
-            <p>Upload a photo of any crop leaf and get an AI diagnosis in under 3 seconds using MobileNetV2 Transfer Learning.</p>
+            <p>Upload a supported crop leaf photo for a prediction from the quantized MobileNetV2 model. Processing time depends on the server and optional external cross-check.</p>
         </div>
         <div class="feature-card">
             <div class="feature-icon"><i class="fas fa-cloud-sun"></i></div>
-            <h3>Live Weather Integration</h3>
-            <p>Real-time 5-day weather forecasts for your location with disease risk advisories based on temperature and humidity.</p>
+            <h3>Weather Integration</h3>
+            <p>Uses live 5-day forecasts when the weather API is configured; otherwise the app identifies its forecast as sample data.</p>
         </div>
         <div class="feature-card">
             <div class="feature-icon"><i class="fas fa-book-medical"></i></div>
             <h3>Disease Encyclopedia</h3>
-            <p>Detailed information on 38 plant diseases — symptoms, treatments, organic remedies, and prevention strategies.</p>
+            <p>Reference information for 38 crop-condition labels, including healthy classes, with symptoms and general care guidance.</p>
         </div>
         <div class="feature-card">
             <div class="feature-icon"><i class="fas fa-chart-line"></i></div>
@@ -134,12 +133,12 @@
         <div style="text-align:center;padding:2rem 1rem;">
             <div style="width:64px;height:64px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:1.6rem;margin:0 auto 1rem;color:#111;font-weight:700;">2</div>
             <h3 style="margin-bottom:0.5rem;">AI Analysis</h3>
-            <p style="color:var(--text-muted);font-size:0.9rem;">Our MobileNetV2 CNN processes the image through 38 disease classes using PyTorch transfer learning.</p>
+            <p style="color:var(--text-muted);font-size:0.9rem;">The deployed quantized ONNX MobileNetV2 model returns scores for 38 crop-condition labels; PyTorch is used for training.</p>
         </div>
         <div style="text-align:center;padding:2rem 1rem;">
             <div style="width:64px;height:64px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:1.6rem;margin:0 auto 1rem;color:white;font-weight:700;">3</div>
             <h3 style="margin-bottom:0.5rem;">Get Treatment Plan</h3>
-            <p style="color:var(--text-muted);font-size:0.9rem;">Receive a detailed report with disease name, severity, organic treatments, and prevention steps.</p>
+            <p style="color:var(--text-muted);font-size:0.9rem;">Review the predicted label and a class-level severity tag, alongside general treatment and prevention references to verify locally.</p>
         </div>
     </div>
 </section>
@@ -148,7 +147,7 @@
 <section class="section section-center">
     <div class="section-label">Coverage</div>
     <h2 class="section-title">Supported Crops</h2>
-    <p class="section-sub">AgriSmart can diagnose diseases in 14 major crop types from the PlantVillage dataset.</p>
+    <p class="section-sub">The classifier covers 38 crop-condition labels across 14 crop types from PlantVillage.</p>
     <div style="display:flex;flex-wrap:wrap;gap:0.75rem;justify-content:center;margin-top:1.5rem;">
         {% for crop in ['🍎 Apple','🫐 Blueberry','🍒 Cherry','🌽 Corn','🍇 Grape','🍊 Orange','🍑 Peach','🫑 Pepper','🥔 Potato','🍓 Strawberry','🫘 Soybean','🎃 Squash','🍅 Tomato','🍓 Raspberry'] %}
         <span style="background:var(--bg-card);border:1px solid var(--border);border-radius:20px;padding:0.4rem 0.9rem;font-size:0.9rem;">{{ crop }}</span>
