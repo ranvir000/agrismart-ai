@@ -39,11 +39,7 @@
             • Avoid blurry or heavily shadowed images<br>
             • Plain backgrounds give better accuracy<br>
             <span style="color:var(--accent);margin-top:.35rem;display:inline-block;">Scope: 38 crop-condition labels, including healthy classes, across the 14 crops listed.</span>
-            {% if vision_available %}
-            <span style="display:block;margin-top:.45rem;">Privacy note: this photo will also be sent to Google Gemini for an external vision cross-check.</span>
-            {% else %}
-            <span style="display:block;margin-top:.45rem;">The optional Gemini comparison is unavailable; the local model is used by itself.</span>
-            {% endif %}
+            <span style="display:block;margin-top:.45rem;">This viva build uses only the MobileNetV2 CNN; no external vision-model API is called. Internet and field photos may differ from the controlled PlantVillage training images, so treat predictions as unverified model outputs.</span>
         </div>
     </div>
 

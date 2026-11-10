@@ -1,6 +1,6 @@
 """
 Image analysis and disease prediction engine.
-Uses PyTorch and MobileNetV2 for Transfer Learning with intelligent fallback.
+Uses the quantized ONNX MobileNetV2 model for server-side CPU inference.
 """
 
 import os
@@ -209,6 +209,13 @@ def analyze_image(image_path):
 
         input_name = session.get_inputs()[0].name
         logits = session.run(None, {input_name: arr})[0][0]
+        if logits.ndim != 1 or logits.shape[0] != len(ONNX_INDEX_TO_DISEASE_KEY):
+            raise ValueError(
+                f'Unexpected model output shape {logits.shape}; expected '
+                f'{len(ONNX_INDEX_TO_DISEASE_KEY)} class scores.'
+            )
+        if not np.isfinite(logits).all():
+            raise ValueError('Model returned non-finite class scores.')
 
         exp_logits = np.exp(logits - np.max(logits))
         probs = exp_logits / np.sum(exp_logits)

@@ -130,6 +130,52 @@ class AgriSmartTests(unittest.TestCase):
         }, content_type='multipart/form-data', follow_redirects=True)
         self.assertEqual(rv.status_code, 200)
 
+    def test_model_class_metadata_matches_training_and_export(self):
+        import json
+        from pathlib import Path
+        from models.disease_info import DISEASES
+        from models.model_loader import ONNX_INDEX_TO_DISEASE_KEY
+        class_names = json.loads(Path('train/outputs/class_names.json').read_text())
+        config = json.loads(Path('models/weights/config.json').read_text())
+        exported_labels = [config['id2label'][str(i)] for i in range(len(config['id2label']))]
+        self.assertEqual(class_names, exported_labels)
+        self.assertEqual(len(class_names), 38)
+        self.assertEqual(len(ONNX_INDEX_TO_DISEASE_KEY), len(class_names))
+        self.assertEqual(len(set(ONNX_INDEX_TO_DISEASE_KEY)), len(class_names))
+        self.assertEqual(set(ONNX_INDEX_TO_DISEASE_KEY), set(DISEASES))
+
+    def test_invalid_onnx_outputs_are_rejected(self):
+        import tempfile
+        import numpy as np
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        from PIL import Image
+        import models.model_loader as model_loader
+
+        class FakeSession:
+            def __init__(self, scores):
+                self.scores = scores
+
+            def get_inputs(self):
+                return [SimpleNamespace(name='input')]
+
+            def run(self, _outputs, _inputs):
+                return [self.scores]
+
+        with tempfile.TemporaryDirectory() as folder:
+            image_path = os.path.join(folder, 'leaf.jpg')
+            Image.new('RGB', (100, 100), color='green').save(image_path)
+            for scores, expected in (
+                (np.zeros((1, 37), dtype=np.float32), 'Unexpected model output shape'),
+                (np.full((1, 38), np.nan, dtype=np.float32), 'non-finite class scores'),
+            ):
+                with self.subTest(expected=expected), patch.object(
+                    model_loader, 'get_onnx_session', return_value=FakeSession(scores)
+                ):
+                    result = model_loader.analyze_image(image_path)
+                    self.assertFalse(result['ok'])
+                    self.assertIn(expected, result['error'])
+
     def test_pdf_and_csv_export(self):
         self.login('farmer@test.com', 'password')
         farmer = User.query.filter_by(email='farmer@test.com').first()
@@ -196,7 +242,7 @@ class AgriSmartTests(unittest.TestCase):
         response = self.client.get('/static/uploads/old-user-photo.jpg')
         self.assertEqual(response.status_code, 404)
 
-    def test_gemini_out_of_scope_refusal_overrules_confident_cnn(self):
+    def test_scan_uses_cnn_only_and_never_calls_external_vision_api(self):
         from unittest.mock import patch
         from PIL import Image
         self.login('farmer@test.com', 'password')
@@ -205,39 +251,17 @@ class AgriSmartTests(unittest.TestCase):
         image.seek(0)
         cnn = {'ok': True, 'disease_key': 'tomato_early_blight', 'confidence': 0.96,
                'severity': 'Moderate', 'alternatives': [], 'source': 'on-device'}
-        refusal = {'ok': False, 'out_of_scope': True, 'crop': 'Rice', 'crop_count': 14,
-                   'note': 'a rice leaf'}
         with patch('routes.scan.analyze_image', return_value=cnn), \
-                patch('routes.scan.analyze_with_vision', return_value=refusal):
-            response = self.client.post('/scan', data={'file': (image, 'rice.jpg')},
-                                        content_type='multipart/form-data')
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(b'Outside My Scope', response.data)
-        self.assertIn(b'no disease name was saved', response.data)
-        self.assertEqual(Scan.query.count(), 0)
-
-    def test_disease_disagreement_requires_review_and_saves_no_scan(self):
-        from unittest.mock import patch
-        from PIL import Image
-        self.login('farmer@test.com', 'password')
-        image = BytesIO()
-        Image.new('RGB', (100, 100), color='green').save(image, 'JPEG')
-        image.seek(0)
-        cnn = {'ok': True, 'disease_key': 'tomato_early_blight', 'confidence': 0.91,
-               'severity': 'Moderate', 'alternatives': [], 'source': 'on-device'}
-        vision = {'ok': True, 'disease_key': 'tomato_late_blight', 'confidence': 0.89,
-                  'severity': 'Severe', 'alternatives': [], 'source': 'vision',
-                  'crop': 'Tomato'}
-        with patch('routes.scan.analyze_image', return_value=cnn), \
-                patch('routes.scan.analyze_with_vision', return_value=vision):
+                patch('requests.post') as external_api:
             response = self.client.post('/scan', data={'file': (image, 'tomato.jpg')},
-                                        content_type='multipart/form-data')
+                                        content_type='multipart/form-data', follow_redirects=True)
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b'Needs Review', response.data)
-        self.assertIn(b'models disagreed', response.data)
-        self.assertIn(b'Early Blight', response.data)
-        self.assertIn(b'Late Blight', response.data)
-        self.assertEqual(Scan.query.count(), 0)
+        self.assertIn(b'CNN-only research prediction', response.data)
+        self.assertNotIn(b'Model Comparison', response.data)
+        self.assertNotIn(b'Gemini', response.data)
+        self.assertEqual(Scan.query.count(), 1)
+        self.assertIsNone(Scan.query.first().engine_outputs)
+        external_api.assert_not_called()
 
     def test_low_confidence_scan_renders_refusal_without_crashing(self):
         from unittest.mock import patch
@@ -248,8 +272,7 @@ class AgriSmartTests(unittest.TestCase):
         image.seek(0)
         cnn = {'ok': True, 'disease_key': 'tomato_early_blight', 'confidence': 0.2,
                'severity': 'Moderate', 'alternatives': [], 'source': 'on-device'}
-        with patch('routes.scan.analyze_image', return_value=cnn), \
-                patch('routes.scan.analyze_with_vision', return_value=None):
+        with patch('routes.scan.analyze_image', return_value=cnn):
             response = self.client.post('/scan', data={'file': (image, 'leaf.jpg')},
                                         content_type='multipart/form-data')
         self.assertEqual(response.status_code, 200)
@@ -275,24 +298,13 @@ class AgriSmartTests(unittest.TestCase):
         cnn = {'ok': True, 'disease_key': 'tomato_early_blight', 'confidence': 0.91,
                'severity': 'Moderate', 'alternatives': [], 'source': 'on-device'}
         with patch.object(scan_routes, 'normalize_upload', side_effect=save_and_capture), \
-                patch.object(scan_routes, 'analyze_image', return_value=cnn), \
-                patch.object(scan_routes, 'analyze_with_vision', return_value=None):
+                patch.object(scan_routes, 'analyze_image', return_value=cnn):
             response = self.client.post('/scan', data={'file': (image, 'leaf.jpg')},
                                         content_type='multipart/form-data', follow_redirects=True)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(saved_paths), 1)
         self.assertFalse(os.path.exists(saved_paths[0]))
         self.assertEqual(Scan.query.count(), 1)
-
-    def test_vision_network_timeout_degrades_gracefully(self):
-        import requests
-        from unittest.mock import patch
-        import models.vision_analyzer as vision
-        with patch.dict(os.environ, {'GEMINI_API_KEY': 'test-key'}), \
-                patch.object(vision, '_post', side_effect=requests.Timeout('timed out')):
-            result = vision.analyze_with_vision('/unused/mock-image.jpg')
-        self.assertIsNone(result)
-        self.assertIn('Network error', vision.last_error())
 
     def test_weather_api_aggregates_40_intervals_into_five_days(self):
         from datetime import datetime, timedelta, timezone

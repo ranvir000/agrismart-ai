@@ -4,8 +4,8 @@
 {% block content %}
 <div class="page-header">
     <div>
-        <h1 class="page-title">🤔 {% if review_required %}Needs Review{% else %}Outside My Scope{% endif %}</h1>
-        <p class="page-subtitle">{% if review_required %}The models disagreed; no disease label was saved{% elif reason %}This photo is outside the diseases this model was trained on{% else %}The model was not confident enough to name a disease for this photo{% endif %}</p>
+        <h1 class="page-title">🤔 Outside My Scope</h1>
+        <p class="page-subtitle">The CNN score was below the configured threshold, so no disease label was saved</p>
     </div>
 </div>
 
@@ -26,8 +26,6 @@
         </div>
     </div>
 
-    {% if comparison %}{% include "_engine_compare.html" %}{% endif %}
-
     <div>
         <div class="card" style="border-color:rgba(244,165,53,0.35);background:rgba(244,165,53,0.06);">
             <div class="card-header">
@@ -37,26 +35,14 @@
                 </h2>
             </div>
             <p style="font-size:.9rem;color:var(--text-muted);line-height:1.65;">
-                {% if review_required %}
-                The on-device classifier and optional vision model are separate estimates, not expert diagnoses. When they disagree, neither prediction is selected as the answer.
-                {% else %}
                 This system classifies <strong>38 crop-condition labels, including healthy classes, across 14 crops</strong> — apple, blueberry, cherry, corn,
                 grape, orange, peach, pepper, potato, raspberry, soybean, squash, strawberry and tomato.
-                When a photo does not look like one of those crops, the honest answer is
-                <strong>“outside my scope”</strong> instead of a wrong disease name.
-                {% endif %}
+                The model has no learned unknown-crop class; it may assign one of these labels to an unfamiliar image.
             </p>
-            {% if reason %}
-            <p style="font-size:.9rem;color:var(--text-muted);line-height:1.65;margin-top:.75rem;">
-                {{ reason }}
-            </p>
-            {% else %}
             <p style="font-size:.9rem;color:var(--text-muted);line-height:1.65;margin-top:.75rem;">
                 The best guess scored below the <strong>{{ '%.0f'|format(threshold * 100) }}%</strong>
-                confidence threshold{{ ' (answered by the ' ~ source ~ ' engine)' if source else '' }},
-                so it was rejected.
+                operating threshold, so the app abstained. This threshold does not reliably identify unfamiliar crops or internet photos.
             </p>
-            {% endif %}
         </div>
 
         {% if candidates %}

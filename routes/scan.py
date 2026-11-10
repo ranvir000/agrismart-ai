@@ -1,8 +1,6 @@
 import base64
 import json
 import os
-from werkzeug.utils import secure_filename
-import mimetypes
 from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app, abort, Response, send_from_directory
 from flask_login import login_required, current_user
 from database.db import db, Scan
@@ -10,83 +8,34 @@ from models.model_loader import (
     analyze_image, allowed_file, normalize_upload, ImageFormatError,
     SUPPORTED_FORMATS_LABEL, LEGACY_UPLOAD_FOLDER,
 )
-from models.vision_analyzer import analyze_with_vision, is_available, last_error
 from models.disease_info import get_disease
 
 scan_bp = Blueprint('scan', __name__)
 
-# Below this probability the app answers "outside my scope" instead of naming a
-# disease it is not confident about. Override per deployment with MIN_CONFIDENCE.
+# Below this model score the app abstains instead of naming a disease.
+# This is not a calibrated probability or a reliable unknown-crop detector.
 MIN_CONFIDENCE = float(os.environ.get('MIN_CONFIDENCE', '0.60'))
 
-# Display guidance only: >=0.85 was 100% accurate on the held-out in-scope test
-# split, but this is not a calibrated probability or a field/OOD guarantee.
-CNN_TRUST_CONFIDENCE = float(os.environ.get('CNN_TRUST_CONFIDENCE', '0.85'))
-
-
-def _engine_summary(prediction):
-    """One engine's own verdict, shaped for the side-by-side comparison view."""
-    if not prediction:
-        return {'status': 'unavailable'}
-    if prediction.get('out_of_scope'):
-        return {
-            'status': 'outside',
-            'crop': prediction.get('crop') or 'Unknown',
-            'note': prediction.get('note') or '',
-        }
-    if not prediction.get('ok'):
-        return {'status': 'unavailable'}
-    info = get_disease(prediction['disease_key']) or {}
-    return {
-        'status': 'named',
-        'key': prediction['disease_key'],
-        'name': info.get('name') or prediction['disease_key'],
-        'crop': info.get('crop') or '',
-        'confidence': round(float(prediction.get('confidence') or 0), 4),
-        'note': prediction.get('note') or '',
-    }
-
-
-def build_comparison(cnn, cloud):
-    """Both engines' answers for the same photo, kept apart so they can be compared."""
-    local = _engine_summary(cnn)
-    vision = _engine_summary(cloud)
-    if local['status'] == 'named' and vision['status'] == 'named':
-        verdict = 'agree' if local['key'] == vision['key'] else 'differ'
-    else:
-        verdict = 'partial'
-    return {'local': local, 'vision': vision, 'verdict': verdict}
-
-
-def _engine_crop(prediction):
-    """The crop implied by an engine's own answer ('' when it named nothing)."""
-    if not prediction or not prediction.get('ok') or prediction.get('out_of_scope'):
-        return ''
-    info = get_disease(prediction.get('disease_key')) or {}
-    return (info.get('crop') or '').strip()
-
-
-def _unknown_candidates(cnn, cloud):
-    """Return a small, de-duplicated list of guesses clearly labelled as unreliable."""
+def _prediction_candidates(prediction):
+    """Return the CNN's top candidates, clearly labelled as unverified suggestions."""
     candidates = []
     seen = set()
-    for prediction in (cnn, cloud):
-        if not prediction or not prediction.get('ok'):
+    if not prediction or not prediction.get('ok'):
+        return candidates
+    options = [prediction] + list(prediction.get('alternatives') or [])
+    for option in options:
+        key = option.get('key') or option.get('disease_key')
+        if not key or key in seen:
             continue
-        options = [prediction] + list(prediction.get('alternatives') or [])
-        for option in options:
-            key = option.get('key') or option.get('disease_key')
-            if not key or key in seen:
-                continue
-            info = get_disease(key) or {}
-            candidates.append({
-                'name': option.get('name') or info.get('name') or key,
-                'crop': info.get('crop', ''),
-                'confidence': float(option.get('confidence') or 0),
-            })
-            seen.add(key)
-            if len(candidates) == 3:
-                return candidates
+        info = get_disease(key) or {}
+        candidates.append({
+            'name': option.get('name') or info.get('name') or key,
+            'crop': info.get('crop', ''),
+            'confidence': float(option.get('confidence') or 0),
+        })
+        seen.add(key)
+        if len(candidates) == 3:
+            break
     return candidates
 
 
@@ -116,19 +65,13 @@ def scan_crop():
                 return redirect(request.url)
             image_mimetype = 'image/jpeg'
             
-            # The CNN is the local classifier. Gemini is an optional cross-check; any
-            # explicit out-of-scope verdict from it takes precedence over a closed-set
-            # CNN guess, which cannot independently prove that an input is in scope.
-            cnn = None
-            cloud = None
+            # This viva build deliberately runs only the trained CNN; no external
+            # vision API receives the uploaded image.
+            result = None
             try:
-                cnn = analyze_image(filepath)
+                result = analyze_image(filepath)
             except Exception:
-                current_app.logger.exception('On-device crop analysis failed.')
-            try:
-                cloud = analyze_with_vision(filepath)
-            except Exception:
-                current_app.logger.exception('Vision cross-check failed.')
+                current_app.logger.exception('CNN crop analysis failed.')
             finally:
                 # Images are stored in the database after a successful scan. Do not
                 # leave the normalized upload in a public static directory.
@@ -137,82 +80,11 @@ def scan_crop():
                 except OSError:
                     pass
 
-            cnn_ok = bool(cnn and cnn.get('ok'))
-            cloud_ok = bool(cloud and cloud.get('ok'))
-
-            # Keep both raw answers, whatever the app decides to show as its answer.
-            comparison = build_comparison(cnn, cloud)
-            scope_refusal = cloud if (cloud and cloud.get('out_of_scope')) else None
-            cnn_crop = _engine_crop(cnn)
-            cloud_crop = _engine_crop(cloud)
-            crop_conflict = bool(cnn_crop and cloud_crop and cnn_crop.lower() != cloud_crop.lower())
-            disease_conflict = bool(
-                cnn_ok and cloud_ok and cnn.get('disease_key') != cloud.get('disease_key')
-            )
-
-            preview_b64 = base64.b64encode(image_bytes).decode('ascii')
-            if scope_refusal or crop_conflict or disease_conflict:
-                if crop_conflict:
-                    reason = (
-                        f'The two engines disagreed about the plant itself: the on-device model '
-                        f'answered for {cnn_crop} while the vision model answered for {cloud_crop}. '
-                        'Neither answer was saved as a diagnosis.'
-                    )
-                elif disease_conflict:
-                    reason = (
-                        f'Both engines identified the crop as {cnn_crop}, but they predicted '
-                        f'different conditions: {get_disease(cnn["disease_key"])["name"]} '
-                        f'and {get_disease(cloud["disease_key"])["name"]}. '
-                        'Neither answer was saved as a diagnosis.'
-                    )
-                else:
-                    reason = (
-                        f"The AI cross-check did not match this plant to the {scope_refusal.get('crop_count', 14)} "
-                        'crops this app covers, so no disease name was saved.'
-                    )
-                    if scope_refusal.get('note'):
-                        reason += f" It described the image as: {scope_refusal['note']}"
-                return render_template(
-                    'scan_unknown.html',
-                    preview=f'data:{image_mimetype};base64,{preview_b64}',
-                    candidates=_unknown_candidates(cnn, cloud),
-                    threshold=MIN_CONFIDENCE,
-                    source='Gemini vision' if scope_refusal else 'model comparison',
-                    reason=reason,
-                    comparison=comparison,
-                    review_required=bool(crop_conflict or disease_conflict),
-                )
-
-            # Keep the trained local model as the headline answer whenever it returns a
-            # supported-class prediction; the optional vision result remains a comparison.
-            if cnn_ok:
-                result = cnn
-            elif cloud_ok:
-                result = cloud
-            else:
-                result = cnn
-                if is_available() and not scope_refusal:
-                    flash('The cloud analysis could not be reached just now, so this result comes from the on-device model only.', 'warning')
             if not result or not result.get('ok'):
                 flash('We could not analyse that photo. Please try a clearer, closer shot of the affected leaf.', 'warning')
                 return redirect(url_for('scan.scan_crop'))
 
-            # A disagreement between the two engines must never be hidden behind one
-            # confident-looking name: the other opinion is shown as an alternative.
-            other = None
-            if result is cloud and cnn_ok and cnn['disease_key'] != result['disease_key']:
-                other = cnn
-            elif result is cnn and cloud_ok and cloud['disease_key'] != result['disease_key']:
-                other = cloud
-            if other:
-                other_info = get_disease(other['disease_key'])
-                result = dict(result)
-                result['alternatives'] = [{
-                    'key': other['disease_key'],
-                    'name': other_info['name'],
-                    'confidence': other['confidence'],
-                }] + list(result.get('alternatives') or [])
-
+            preview_b64 = base64.b64encode(image_bytes).decode('ascii')
             disease_key = result['disease_key']
             confidence = result['confidence']
             severity = result['severity']
@@ -221,32 +93,11 @@ def scan_crop():
             # Honest rejection: a weak best guess - or a photo of a plant outside the
             # library - means "I do not know this one", not a made-up disease name.
             if confidence < MIN_CONFIDENCE:
-                candidates = [{
-                    'name': disease_info['name'],
-                    'crop': disease_info['crop'],
-                    'confidence': confidence,
-                }]
-                for alt in result.get('alternatives', []):
-                    alt_info = {}
-                    if alt.get('key'):
-                        try:
-                            alt_info = get_disease(alt['key']) or {}
-                        except Exception:
-                            alt_info = {}
-                    candidates.append({
-                        'name': alt.get('name') or alt_info.get('name', '-'),
-                        'crop': alt_info.get('crop', ''),
-                        'confidence': alt.get('confidence', 0),
-                    })
-
                 return render_template(
                     'scan_unknown.html',
                     preview=f"data:{image_mimetype};base64,{preview_b64}",
-                    candidates=candidates[:3],
+                    candidates=_prediction_candidates(result),
                     threshold=MIN_CONFIDENCE,
-                    source=result.get('source'),
-                    reason=None,
-                    comparison=comparison,
                 )
             
             # Save to database
@@ -262,7 +113,6 @@ def scan_crop():
                 image_mimetype=image_mimetype,
                 alternatives=json.dumps(result.get('alternatives', [])),
                 analysis_source=result.get('source', 'on-device'),
-                engine_outputs=json.dumps(comparison)
             )
             db.session.add(scan)
             db.session.commit()
@@ -273,7 +123,7 @@ def scan_crop():
             flash(f'Allowed image types are -> {SUPPORTED_FORMATS_LABEL}', 'danger')
             return redirect(request.url)
 
-    return render_template('scan.html', vision_available=is_available())
+    return render_template('scan.html')
 
 @scan_bp.route('/scan/image/<int:scan_id>')
 @login_required
@@ -301,15 +151,8 @@ def scan_results(scan_id):
         alternatives = json.loads(scan.alternatives) if scan.alternatives else []
     except ValueError:
         alternatives = []
-    comparison = None
-    if scan.engine_outputs:
-        try:
-            comparison = json.loads(scan.engine_outputs)
-        except ValueError:
-            comparison = None
     return render_template('scan_results.html', scan=scan, disease_info=disease_info,
-                           alternatives=alternatives, comparison=comparison,
-                           trust_threshold=CNN_TRUST_CONFIDENCE)
+                           alternatives=alternatives)
 
 @scan_bp.route('/scan/download-pdf/<int:scan_id>')
 @login_required

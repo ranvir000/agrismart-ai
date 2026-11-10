@@ -35,7 +35,7 @@
         </div>
         <div class="confidence-bar" style="margin-top:.75rem;">
             <div style="display:flex;justify-content:space-between;font-size:.78rem;color:var(--text-muted);margin-bottom:.3rem;">
-                <span>{% if scan.analysis_source == 'vision' %}Vision-model score{% else %}On-device model score{% endif %} (not a calibrated field probability)</span>
+                <span>{% if scan.analysis_source == 'vision' %}Legacy external-model score{% else %}MobileNetV2 CNN score (not a calibrated field probability){% endif %}</span>
                 <strong style="color:var(--text);">{{ (scan.confidence * 100) | round(1) }}%</strong>
             </div>
             <div class="confidence-track">
@@ -58,15 +58,9 @@
             <div style="margin-top:.6rem;font-size:.78rem;color:var(--text-muted);">
                 <i class="fas fa-microchip" style="margin-right:.3rem;"></i>
                 {% if scan.analysis_source == 'vision' %}
-                <strong>This result came from the vision model.</strong> The local model did not return a usable class.
-                {% elif comparison and comparison.vision.status != 'unavailable' %}
-                <strong>The trained on-device model's own answer.</strong>
-                {% if scan.confidence < trust_threshold %}It was below the display-guidance threshold; the separate Gemini answer is shown below. Neither score is edited.
+                <strong>Legacy scan from an earlier release.</strong> This result was not produced by the current CNN-only scan flow; run a new scan for the viva demonstration.
                 {% else %}
-                The separate Gemini answer for the same photo is shown below for comparison.
-                {% endif %}
-                {% else %}
-                <strong>The trained on-device model's own answer.</strong> A Gemini cross-check was unavailable for this scan.
+                <strong>CNN-only research prediction.</strong> The model always ranks its 38 trained labels and can still be confidently wrong on unfamiliar crops or internet photos. Compare the alternatives and verify independently.
                 {% endif %}
             </div>
         </div>
@@ -76,8 +70,6 @@
          onerror="this.style.display='none'"
          alt="Scanned leaf">
 </div>
-
-{% if comparison %}{% include "_engine_compare.html" %}{% endif %}
 
 <div class="grid-2" style="align-items:start;">
     <!-- ── Left Column ─────────────────────────────────────── -->
