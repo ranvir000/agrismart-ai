@@ -216,6 +216,29 @@ class AgriSmartTests(unittest.TestCase):
         self.assertIn(b'no disease name was saved', response.data)
         self.assertEqual(Scan.query.count(), 0)
 
+    def test_disease_disagreement_requires_review_and_saves_no_scan(self):
+        from unittest.mock import patch
+        from PIL import Image
+        self.login('farmer@test.com', 'password')
+        image = BytesIO()
+        Image.new('RGB', (100, 100), color='green').save(image, 'JPEG')
+        image.seek(0)
+        cnn = {'ok': True, 'disease_key': 'tomato_early_blight', 'confidence': 0.91,
+               'severity': 'Moderate', 'alternatives': [], 'source': 'on-device'}
+        vision = {'ok': True, 'disease_key': 'tomato_late_blight', 'confidence': 0.89,
+                  'severity': 'Severe', 'alternatives': [], 'source': 'vision',
+                  'crop': 'Tomato'}
+        with patch('routes.scan.analyze_image', return_value=cnn), \
+                patch('routes.scan.analyze_with_vision', return_value=vision):
+            response = self.client.post('/scan', data={'file': (image, 'tomato.jpg')},
+                                        content_type='multipart/form-data')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'Needs Review', response.data)
+        self.assertIn(b'models disagreed', response.data)
+        self.assertIn(b'Early Blight', response.data)
+        self.assertIn(b'Late Blight', response.data)
+        self.assertEqual(Scan.query.count(), 0)
+
     def test_low_confidence_scan_renders_refusal_without_crashing(self):
         from unittest.mock import patch
         from PIL import Image

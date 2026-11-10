@@ -146,14 +146,24 @@ def scan_crop():
             cnn_crop = _engine_crop(cnn)
             cloud_crop = _engine_crop(cloud)
             crop_conflict = bool(cnn_crop and cloud_crop and cnn_crop.lower() != cloud_crop.lower())
+            disease_conflict = bool(
+                cnn_ok and cloud_ok and cnn.get('disease_key') != cloud.get('disease_key')
+            )
 
             preview_b64 = base64.b64encode(image_bytes).decode('ascii')
-            if scope_refusal or crop_conflict:
+            if scope_refusal or crop_conflict or disease_conflict:
                 if crop_conflict:
                     reason = (
                         f'The two engines disagreed about the plant itself: the on-device model '
                         f'answered for {cnn_crop} while the vision model answered for {cloud_crop}. '
-                        'No disease name was saved because the crop could be wrong.'
+                        'Neither answer was saved as a diagnosis.'
+                    )
+                elif disease_conflict:
+                    reason = (
+                        f'Both engines identified the crop as {cnn_crop}, but they predicted '
+                        f'different conditions: {get_disease(cnn["disease_key"])["name"]} '
+                        f'and {get_disease(cloud["disease_key"])["name"]}. '
+                        'Neither answer was saved as a diagnosis.'
                     )
                 else:
                     reason = (
@@ -170,6 +180,7 @@ def scan_crop():
                     source='Gemini vision' if scope_refusal else 'model comparison',
                     reason=reason,
                     comparison=comparison,
+                    review_required=bool(crop_conflict or disease_conflict),
                 )
 
             # Keep the trained local model as the headline answer whenever it returns a
